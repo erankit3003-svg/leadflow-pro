@@ -1,0 +1,153 @@
+import { useState } from 'react';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { Header } from '@/components/layout/Header';
+import { LeadsTable } from '@/components/leads/LeadsTable';
+import { LeadForm } from '@/components/leads/LeadForm';
+import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
+import { mockLeads } from '@/data/mockData';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Search, Filter, Download, LayoutGrid, List } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
+
+export default function Leads() {
+  const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | undefined>();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
+  const { toast } = useToast();
+
+  const filteredLeads = leads.filter((lead) => {
+    const matchesSearch =
+      lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lead.company?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleAddLead = () => {
+    setEditingLead(undefined);
+    setIsFormOpen(true);
+  };
+
+  const handleEditLead = (lead: Lead) => {
+    setEditingLead(lead);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteLead = (leadId: string) => {
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    toast({
+      title: 'Lead Deleted',
+      description: 'The lead has been removed.',
+      variant: 'destructive',
+    });
+  };
+
+  const handleSubmitLead = (leadData: Partial<Lead>) => {
+    if (editingLead) {
+      setLeads((prev) =>
+        prev.map((l) => (l.id === editingLead.id ? { ...l, ...leadData } as Lead : l))
+      );
+      toast({
+        title: 'Lead Updated',
+        description: 'Lead information has been updated.',
+      });
+    } else {
+      setLeads((prev) => [...prev, leadData as Lead]);
+      toast({
+        title: 'Lead Created',
+        description: 'New lead has been added.',
+      });
+    }
+  };
+
+  return (
+    <MainLayout>
+      <Header
+        title="Leads"
+        subtitle={`${filteredLeads.length} total leads`}
+        onAddNew={handleAddLead}
+        addNewLabel="Add Lead"
+      />
+
+      <div className="p-6 space-y-6">
+        {/* Filters Bar */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex flex-1 gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search leads..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as LeadStatus | 'all')}
+            >
+              <SelectTrigger className="w-[160px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                  <SelectItem key={key} value={key}>
+                    {config.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon">
+              <Download className="h-4 w-4" />
+            </Button>
+            <div className="flex border border-border rounded-lg overflow-hidden">
+              <Button variant="ghost" size="icon" className="rounded-none border-r border-border">
+                <List className="h-4 w-4" />
+              </Button>
+              <Link to="/pipeline">
+                <Button variant="ghost" size="icon" className="rounded-none">
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Leads Table */}
+        <LeadsTable
+          leads={filteredLeads}
+          onEdit={handleEditLead}
+          onDelete={handleDeleteLead}
+        />
+      </div>
+
+      <LeadForm
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={handleSubmitLead}
+        lead={editingLead}
+      />
+    </MainLayout>
+  );
+}
