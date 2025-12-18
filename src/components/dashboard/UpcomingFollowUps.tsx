@@ -3,6 +3,7 @@ import { mockLeads } from '@/data/mockData';
 import { format, isToday, isPast } from 'date-fns';
 import { Phone, Mail, Video, MessageCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
 interface UpcomingFollowUpsProps {
   followUps: FollowUp[];
@@ -20,9 +21,9 @@ export function UpcomingFollowUps({ followUps }: UpcomingFollowUpsProps) {
     <div className="stat-card">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">Upcoming Follow-ups</h3>
-        <button className="text-sm text-primary font-medium hover:underline">
+        <Link to="/follow-ups" className="text-sm text-primary font-medium hover:underline">
           View All
-        </button>
+        </Link>
       </div>
       <div className="space-y-3">
         {followUps.map((followUp) => {

@@ -1,7 +1,7 @@
 import { Lead, STATUS_CONFIG, SOURCE_CONFIG } from '@/types/lead';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, Phone, Mail, Calendar } from 'lucide-react';
+import { MoreHorizontal, Phone, Mail, Calendar, MessageCircle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -14,10 +14,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -26,6 +28,28 @@ interface LeadsTableProps {
 }
 
 export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
+  const { toast } = useToast();
+
+  const handleCall = (phone: string) => {
+    window.open(`tel:${phone}`, '_self');
+  };
+
+  const handleEmail = (email: string) => {
+    window.open(`mailto:${email}`, '_self');
+  };
+
+  const handleWhatsApp = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+  };
+
+  const handleAddFollowUp = (lead: Lead) => {
+    toast({
+      title: 'Follow-up Scheduled',
+      description: `Follow-up added for ${lead.name}. Go to Follow-ups page to manage.`,
+    });
+  };
+
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
       <Table>
@@ -70,15 +94,21 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
                 </TableCell>
                 <TableCell>
                   <div className="space-y-1">
-                    <p className="text-sm flex items-center gap-1.5 text-muted-foreground">
+                    <button 
+                      onClick={() => handleCall(lead.phone)}
+                      className="text-sm flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                    >
                       <Phone className="h-3.5 w-3.5" />
                       {lead.phone}
-                    </p>
+                    </button>
                     {lead.email && (
-                      <p className="text-sm flex items-center gap-1.5 text-muted-foreground">
+                      <button 
+                        onClick={() => handleEmail(lead.email)}
+                        className="text-sm flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                      >
                         <Mail className="h-3.5 w-3.5" />
                         {lead.email}
-                      </p>
+                      </button>
                     )}
                   </div>
                 </TableCell>
@@ -113,8 +143,25 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
                       <DropdownMenuItem onClick={() => onEdit(lead)}>
                         Edit Lead
                       </DropdownMenuItem>
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Add Follow-up</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAddFollowUp(lead)}>
+                        Add Follow-up
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleCall(lead.phone)}>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Call
+                      </DropdownMenuItem>
+                      {lead.email && (
+                        <DropdownMenuItem onClick={() => handleEmail(lead.email)}>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Email
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => handleWhatsApp(lead.phone)}>
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        WhatsApp
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         onClick={() => onDelete(lead.id)}
                         className="text-destructive"

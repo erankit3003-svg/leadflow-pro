@@ -75,6 +75,33 @@ export default function Leads() {
     }
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Name', 'Email', 'Phone', 'Company', 'Status', 'Value', 'Source'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredLeads.map(lead => [
+        `"${lead.name}"`,
+        `"${lead.email}"`,
+        `"${lead.phone}"`,
+        `"${lead.company || ''}"`,
+        lead.status,
+        lead.value,
+        lead.source
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'leads_export.csv';
+    link.click();
+    
+    toast({
+      title: 'Export Complete',
+      description: `${filteredLeads.length} leads exported to CSV.`,
+    });
+  };
+
   return (
     <MainLayout>
       <Header
@@ -118,11 +145,11 @@ export default function Leads() {
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" onClick={handleExportCSV} title="Export to CSV">
               <Download className="h-4 w-4" />
             </Button>
             <div className="flex border border-border rounded-lg overflow-hidden">
-              <Button variant="ghost" size="icon" className="rounded-none border-r border-border">
+              <Button variant="ghost" size="icon" className="rounded-none border-r border-border bg-accent">
                 <List className="h-4 w-4" />
               </Button>
               <Link to="/pipeline">
