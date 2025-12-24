@@ -1,7 +1,7 @@
 import { Lead, STATUS_CONFIG, SOURCE_CONFIG } from '@/types/lead';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, Phone, Mail, Calendar, MessageCircle } from 'lucide-react';
+import { MoreHorizontal, Phone, Mail, Calendar, MessageCircle, MessageSquare } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -25,9 +25,10 @@ interface LeadsTableProps {
   leads: Lead[];
   onEdit: (lead: Lead) => void;
   onDelete: (leadId: string) => void;
+  onViewNotes: (lead: Lead) => void;
 }
 
-export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
+export function LeadsTable({ leads, onEdit, onDelete, onViewNotes }: LeadsTableProps) {
   const { toast } = useToast();
 
   const handleCall = (phone: string) => {
@@ -142,6 +143,10 @@ export function LeadsTable({ leads, onEdit, onDelete }: LeadsTableProps) {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onEdit(lead)}>
                         Edit Lead
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onViewNotes(lead)}>
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        View/Add Notes ({lead.notes?.length || 0})
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleAddFollowUp(lead)}>
                         Add Follow-up

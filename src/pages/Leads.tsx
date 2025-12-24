@@ -3,6 +3,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Header } from '@/components/layout/Header';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadForm } from '@/components/leads/LeadForm';
+import { LeadNotesDialog } from '@/components/leads/LeadNotesDialog';
 import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
 import { mockLeads } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +24,7 @@ export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
+  const [notesLead, setNotesLead] = useState<Lead | undefined>();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const { toast } = useToast();
@@ -73,6 +75,22 @@ export default function Leads() {
         description: 'New lead has been added.',
       });
     }
+  };
+
+  const handleViewNotes = (lead: Lead) => {
+    setNotesLead(lead);
+  };
+
+  const handleUpdateNotes = (leadId: string, notes: string[]) => {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, notes, updatedAt: new Date() } : l))
+    );
+    // Update notesLead to reflect changes
+    setNotesLead((prev) => prev && prev.id === leadId ? { ...prev, notes } : prev);
+    toast({
+      title: 'Notes Updated',
+      description: 'Lead notes have been saved.',
+    });
   };
 
   const handleExportCSV = () => {
@@ -166,6 +184,7 @@ export default function Leads() {
           leads={filteredLeads}
           onEdit={handleEditLead}
           onDelete={handleDeleteLead}
+          onViewNotes={handleViewNotes}
         />
       </div>
 
@@ -175,6 +194,15 @@ export default function Leads() {
         onSubmit={handleSubmitLead}
         lead={editingLead}
       />
+
+      {notesLead && (
+        <LeadNotesDialog
+          open={!!notesLead}
+          onClose={() => setNotesLead(undefined)}
+          lead={notesLead}
+          onUpdateNotes={handleUpdateNotes}
+        />
+      )}
     </MainLayout>
   );
 }
