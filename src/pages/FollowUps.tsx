@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Header } from '@/components/layout/Header';
 import { mockFollowUps, mockLeads } from '@/data/mockData';
@@ -105,8 +106,8 @@ export default function FollowUps() {
           <p className="text-sm text-muted-foreground">{followUp.time}</p>
         </div>
 
-        <Button variant="ghost" size="sm" className="text-primary">
-          View Lead
+        <Button asChild variant="ghost" size="sm" className="text-primary">
+          <Link to="/leads">View Lead</Link>
         </Button>
       </div>
     );
