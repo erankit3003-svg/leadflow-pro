@@ -1,6 +1,7 @@
 import { Bell, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 interface HeaderProps {
   title: string;
@@ -10,6 +11,8 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: HeaderProps) {
+  const { toast } = useToast();
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
       <div>
@@ -29,7 +32,18 @@ export function Header({ title, subtitle, onAddNew, addNewLabel = 'Add New' }: H
         </div>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          onClick={() =>
+            toast({
+              title: 'Notifications',
+              description: 'Notifications panel will be added next.',
+            })
+          }
+          aria-label="Open notifications"
+        >
           <Bell className="h-5 w-5" />
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
             2

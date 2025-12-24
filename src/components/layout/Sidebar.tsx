@@ -11,6 +11,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -21,12 +22,11 @@ const navigation = [
   { name: 'Invoices', href: '/invoices', icon: FileText },
 ];
 
-const secondaryNavigation = [
-  { name: 'Settings', href: '/settings', icon: Settings },
-];
+const secondaryNavigation = [{ name: 'Settings', href: '/settings', icon: Settings }];
 
 export function Sidebar() {
   const location = useLocation();
+  const { toast } = useToast();
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 gradient-sidebar border-r border-sidebar-border">
@@ -53,10 +53,7 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 to={item.href}
-                className={cn(
-                  'sidebar-link',
-                  isActive && 'sidebar-link-active'
-                )}
+                className={cn('sidebar-link', isActive && 'sidebar-link-active')}
               >
                 <item.icon className="h-5 w-5" />
                 <span>{item.name}</span>
@@ -81,10 +78,7 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 to={item.href}
-                className={cn(
-                  'sidebar-link',
-                  isActive && 'sidebar-link-active'
-                )}
+                className={cn('sidebar-link', isActive && 'sidebar-link-active')}
               >
                 <item.icon className="h-5 w-5" />
                 <span>{item.name}</span>
@@ -105,7 +99,17 @@ export function Sidebar() {
               </p>
               <p className="text-xs text-sidebar-muted truncate">Admin</p>
             </div>
-            <button className="p-2 rounded-lg text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors">
+            <button
+              type="button"
+              className="p-2 rounded-lg text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              onClick={() =>
+                toast({
+                  title: 'Logout',
+                  description: 'Authentication will be added next (this is a mock app right now).',
+                })
+              }
+              aria-label="Log out"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           </div>
