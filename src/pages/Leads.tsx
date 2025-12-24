@@ -149,14 +149,14 @@ export default function Leads() {
               <Download className="h-4 w-4" />
             </Button>
             <div className="flex border border-border rounded-lg overflow-hidden">
-              <Button variant="ghost" size="icon" className="rounded-none border-r border-border bg-accent">
+              <Button variant="ghost" size="icon" className="rounded-none border-r border-border bg-accent" aria-label="Table view">
                 <List className="h-4 w-4" />
               </Button>
-              <Link to="/pipeline">
-                <Button variant="ghost" size="icon" className="rounded-none">
+              <Button asChild variant="ghost" size="icon" className="rounded-none" aria-label="Pipeline view">
+                <Link to="/pipeline">
                   <LayoutGrid className="h-4 w-4" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

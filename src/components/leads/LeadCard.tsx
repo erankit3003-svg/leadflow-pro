@@ -62,7 +62,14 @@ export function LeadCard({ lead, onEdit, onDelete }: LeadCardProps) {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="p-1 rounded hover:bg-muted" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="p-1 rounded hover:bg-muted"
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Lead actions"
+            >
               <MoreVertical className="h-4 w-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
