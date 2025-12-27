@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -13,9 +13,20 @@ import { Header } from '@/components/layout/Header';
 import { PipelineColumn } from '@/components/leads/PipelineColumn';
 import { LeadCard } from '@/components/leads/LeadCard';
 import { LeadForm } from '@/components/leads/LeadForm';
-import { Lead, LeadStatus } from '@/types/lead';
+import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
 import { mockLeads } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
+import { Card } from '@/components/ui/card';
+import { TrendingUp, Users, IndianRupee, Target, ArrowRight, Filter, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const PIPELINE_STATUSES: LeadStatus[] = [
   'new',
@@ -32,6 +43,9 @@ export default function Pipeline() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
+  const [defaultStatus, setDefaultStatus] = useState<LeadStatus>('new');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterSource, setFilterSource] = useState<string>('all');
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -43,6 +57,33 @@ export default function Pipeline() {
   );
 
   const activeLead = activeId ? leads.find((l) => l.id === activeId) : null;
+
+  // Calculate pipeline stats
+  const stats = useMemo(() => {
+    const totalLeads = leads.length;
+    const totalValue = leads.reduce((sum, l) => sum + l.value, 0);
+    const wonValue = leads.filter(l => l.status === 'won').reduce((sum, l) => sum + l.value, 0);
+    const conversionRate = totalLeads > 0 
+      ? ((leads.filter(l => l.status === 'won').length / totalLeads) * 100).toFixed(1)
+      : '0';
+    const activeLeads = leads.filter(l => !['won', 'lost'].includes(l.status)).length;
+
+    return { totalLeads, totalValue, wonValue, conversionRate, activeLeads };
+  }, [leads]);
+
+  // Filter leads
+  const filteredLeads = useMemo(() => {
+    return leads.filter(lead => {
+      const matchesSearch = searchQuery === '' || 
+        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.requirement.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesSource = filterSource === 'all' || lead.source === filterSource;
+      
+      return matchesSearch && matchesSource;
+    });
+  }, [leads, searchQuery, filterSource]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -57,6 +98,9 @@ export default function Pipeline() {
     const leadId = active.id as string;
     const newStatus = over.id as LeadStatus;
 
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead || lead.status === newStatus) return;
+
     setLeads((prev) =>
       prev.map((lead) =>
         lead.id === leadId
@@ -66,13 +110,14 @@ export default function Pipeline() {
     );
 
     toast({
-      title: 'Lead Updated',
-      description: `Lead moved to ${newStatus.replace('-', ' ')} stage.`,
+      title: '🎯 Lead Updated',
+      description: `${lead.name} moved to ${STATUS_CONFIG[newStatus].label}`,
     });
   };
 
-  const handleAddLead = () => {
+  const handleAddLead = (status?: LeadStatus) => {
     setEditingLead(undefined);
+    setDefaultStatus(status || 'new');
     setIsFormOpen(true);
   };
 
@@ -100,9 +145,17 @@ export default function Pipeline() {
         description: 'Lead information has been updated.',
       });
     } else {
-      setLeads((prev) => [...prev, leadData as Lead]);
+      const newLead: Lead = {
+        id: `lead-${Date.now()}`,
+        ...leadData,
+        status: defaultStatus,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        notes: [],
+      } as Lead;
+      setLeads((prev) => [...prev, newLead]);
       toast({
-        title: 'Lead Created',
+        title: '🎉 Lead Created',
         description: 'New lead has been added to the pipeline.',
       });
     }
@@ -112,25 +165,106 @@ export default function Pipeline() {
     <MainLayout>
       <Header
         title="Sales Pipeline"
-        subtitle="Drag and drop leads to update their status"
-        onAddNew={handleAddLead}
+        subtitle="Drag and drop leads to move them through your sales process"
+        onAddNew={() => handleAddLead()}
         addNewLabel="Add Lead"
       />
 
-      <div className="p-6">
+      <div className="p-6 space-y-6">
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Leads</p>
+                <p className="text-2xl font-bold text-foreground">{stats.totalLeads}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4 bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border-indigo-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Pipeline Value</p>
+                <p className="text-2xl font-bold text-foreground">₹{(stats.totalValue / 100000).toFixed(1)}L</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                <IndianRupee className="h-6 w-6 text-indigo-600" />
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Won Revenue</p>
+                <p className="text-2xl font-bold text-foreground">₹{(stats.wonValue / 100000).toFixed(1)}L</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-emerald-600" />
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-4 bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                <p className="text-2xl font-bold text-foreground">{stats.conversionRate}%</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                <Target className="h-6 w-6 text-amber-600" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search leads..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={filterSource} onValueChange={setFilterSource}>
+            <SelectTrigger className="w-[180px]">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sources</SelectItem>
+              <SelectItem value="website">Website</SelectItem>
+              <SelectItem value="referral">Referral</SelectItem>
+              <SelectItem value="social">Social Media</SelectItem>
+              <SelectItem value="cold-call">Cold Call</SelectItem>
+              <SelectItem value="email">Email</SelectItem>
+              <SelectItem value="advertisement">Advertisement</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Pipeline Board */}
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6">
             {PIPELINE_STATUSES.map((status) => (
               <PipelineColumn
                 key={status}
                 status={status}
-                leads={leads.filter((l) => l.status === status)}
+                leads={filteredLeads.filter((l) => l.status === status)}
                 onEditLead={handleEditLead}
                 onDeleteLead={handleDeleteLead}
+                onAddLead={handleAddLead}
               />
             ))}
           </div>
@@ -139,6 +273,21 @@ export default function Pipeline() {
             {activeLead ? <LeadCard lead={activeLead} /> : null}
           </DragOverlay>
         </DndContext>
+
+        {/* Quick Tip */}
+        <Card className="p-4 bg-primary/5 border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <ArrowRight className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Pro Tip</p>
+              <p className="text-xs text-muted-foreground">
+                Drag and drop leads between columns to update their status. Click the + button on any column to add a new lead directly to that stage.
+              </p>
+            </div>
+          </div>
+        </Card>
       </div>
 
       <LeadForm
