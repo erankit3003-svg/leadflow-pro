@@ -13,6 +13,8 @@ import { Header } from '@/components/layout/Header';
 import { PipelineColumn } from '@/components/leads/PipelineColumn';
 import { LeadCard } from '@/components/leads/LeadCard';
 import { LeadForm } from '@/components/leads/LeadForm';
+import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
+import { LeadNotesDialog } from '@/components/leads/LeadNotesDialog';
 import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
 import { mockLeads } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +48,8 @@ export default function Pipeline() {
   const [defaultStatus, setDefaultStatus] = useState<LeadStatus>('new');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSource, setFilterSource] = useState<string>('all');
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [notesLead, setNotesLead] = useState<Lead | null>(null);
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -133,6 +137,21 @@ export default function Pipeline() {
       description: 'The lead has been removed.',
       variant: 'destructive',
     });
+  };
+
+  const handleViewDetails = (lead: Lead) => {
+    setSelectedLead(lead);
+  };
+
+  const handleViewNotes = (lead: Lead) => {
+    setNotesLead(lead);
+    setSelectedLead(null);
+  };
+
+  const handleUpdateNotes = (leadId: string, notes: Lead['notes']) => {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, notes, updatedAt: new Date() } : l))
+    );
   };
 
   const handleSubmitLead = (leadData: Partial<Lead>) => {
@@ -265,6 +284,7 @@ export default function Pipeline() {
                 onEditLead={handleEditLead}
                 onDeleteLead={handleDeleteLead}
                 onAddLead={handleAddLead}
+                onViewDetails={handleViewDetails}
               />
             ))}
           </div>
@@ -295,6 +315,24 @@ export default function Pipeline() {
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleSubmitLead}
         lead={editingLead}
+      />
+
+      <LeadDetailDrawer
+        lead={selectedLead}
+        open={!!selectedLead}
+        onClose={() => setSelectedLead(null)}
+        onEdit={(lead) => {
+          setSelectedLead(null);
+          handleEditLead(lead);
+        }}
+        onViewNotes={handleViewNotes}
+      />
+
+      <LeadNotesDialog
+        lead={notesLead}
+        open={!!notesLead}
+        onClose={() => setNotesLead(null)}
+        onUpdateNotes={handleUpdateNotes}
       />
     </MainLayout>
   );

@@ -18,9 +18,10 @@ interface LeadCardProps {
   onEdit?: (lead: Lead) => void;
   onDelete?: (leadId: string) => void;
   onViewNotes?: (lead: Lead) => void;
+  onViewDetails?: (lead: Lead) => void;
 }
 
-export function LeadCard({ lead, onEdit, onDelete, onViewNotes }: LeadCardProps) {
+export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }: LeadCardProps) {
   const {
     attributes,
     listeners,
@@ -43,10 +44,11 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes }: LeadCardProps)
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200',
+        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-pointer',
         'hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5',
         isDragging && 'opacity-60 shadow-2xl ring-2 ring-primary/40 rotate-2 scale-105'
       )}
+      onClick={() => onViewDetails?.(lead)}
     >
       {/* Drag Handle & Header */}
       <div className="flex items-start gap-3">
