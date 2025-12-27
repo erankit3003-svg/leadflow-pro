@@ -11,6 +11,7 @@ interface PipelineColumnProps {
   onEditLead?: (lead: Lead) => void;
   onDeleteLead?: (leadId: string) => void;
   onAddLead?: (status: LeadStatus) => void;
+  onViewDetails?: (lead: Lead) => void;
 }
 
 const STATUS_ICONS: Record<LeadStatus, string> = {
@@ -43,7 +44,7 @@ const STATUS_HEADER_COLORS: Record<LeadStatus, string> = {
   'lost': 'bg-red-500',
 };
 
-export function PipelineColumn({ status, leads, onEditLead, onDeleteLead, onAddLead }: PipelineColumnProps) {
+export function PipelineColumn({ status, leads, onEditLead, onDeleteLead, onAddLead, onViewDetails }: PipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const config = STATUS_CONFIG[status];
   const totalValue = leads.reduce((sum, lead) => sum + lead.value, 0);
@@ -112,6 +113,7 @@ export function PipelineColumn({ status, leads, onEditLead, onDeleteLead, onAddL
                   lead={lead}
                   onEdit={onEditLead}
                   onDelete={onDeleteLead}
+                  onViewDetails={onViewDetails}
                 />
               </div>
             ))}
