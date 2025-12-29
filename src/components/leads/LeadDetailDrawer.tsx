@@ -31,13 +31,11 @@ interface LeadDetailDrawerProps {
 }
 
 export function LeadDetailDrawer({ lead, open, onClose, onEdit, onViewNotes }: LeadDetailDrawerProps) {
-  if (!lead) return null;
-
-  const statusConfig = STATUS_CONFIG[lead.status];
-  const initials = lead.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const statusConfig = lead ? STATUS_CONFIG[lead.status] : null;
+  const initials = lead?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || '';
 
   return (
-    <Sheet open={open} onOpenChange={onClose}>
+    <Sheet open={open && !!lead} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader className="space-y-4">
           <div className="flex items-center gap-4">
