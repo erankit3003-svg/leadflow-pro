@@ -15,48 +15,50 @@ import { format } from 'date-fns';
 interface LeadNotesDialogProps {
   open: boolean;
   onClose: () => void;
-  lead: Lead;
+  lead: Lead | null;
   onUpdateNotes: (leadId: string, notes: string[]) => void;
 }
 
 export function LeadNotesDialog({ open, onClose, lead, onUpdateNotes }: LeadNotesDialogProps) {
+  const safeLead = lead || { id: '', name: '', notes: [] } as Lead;
   const [newNote, setNewNote] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editedNote, setEditedNote] = useState('');
 
   const handleAddNote = () => {
-    if (!newNote.trim()) return;
+    if (!newNote.trim() || !lead) return;
     
     const timestamp = format(new Date(), 'MMM dd, yyyy HH:mm');
     const noteWithTimestamp = `[${timestamp}] ${newNote.trim()}`;
-    const updatedNotes = [noteWithTimestamp, ...(lead.notes || [])];
-    onUpdateNotes(lead.id, updatedNotes);
+    const updatedNotes = [noteWithTimestamp, ...(safeLead.notes || [])];
+    onUpdateNotes(safeLead.id, updatedNotes);
     setNewNote('');
   };
 
   const handleEditNote = (index: number) => {
     setEditingIndex(index);
     // Extract the note text without timestamp for editing
-    const note = lead.notes[index];
+    const note = safeLead.notes?.[index] || '';
     const match = note.match(/^\[.*?\]\s*(.*)/);
     setEditedNote(match ? match[1] : note);
   };
 
   const handleSaveEdit = (index: number) => {
-    if (!editedNote.trim()) return;
+    if (!editedNote.trim() || !lead) return;
     
     const timestamp = format(new Date(), 'MMM dd, yyyy HH:mm');
     const noteWithTimestamp = `[${timestamp}] ${editedNote.trim()} (edited)`;
-    const updatedNotes = [...lead.notes];
+    const updatedNotes = [...(safeLead.notes || [])];
     updatedNotes[index] = noteWithTimestamp;
-    onUpdateNotes(lead.id, updatedNotes);
+    onUpdateNotes(safeLead.id, updatedNotes);
     setEditingIndex(null);
     setEditedNote('');
   };
 
   const handleDeleteNote = (index: number) => {
-    const updatedNotes = lead.notes.filter((_, i) => i !== index);
-    onUpdateNotes(lead.id, updatedNotes);
+    if (!lead) return;
+    const updatedNotes = (safeLead.notes || []).filter((_, i) => i !== index);
+    onUpdateNotes(safeLead.id, updatedNotes);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -67,12 +69,12 @@ export function LeadNotesDialog({ open, onClose, lead, onUpdateNotes }: LeadNote
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open && !!lead} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary" />
-            Notes for {lead.name}
+            Notes for {safeLead.name}
           </DialogTitle>
         </DialogHeader>
 
@@ -97,13 +99,12 @@ export function LeadNotesDialog({ open, onClose, lead, onUpdateNotes }: LeadNote
           </div>
         </div>
 
-        {/* Notes List */}
         <div className="flex-1 min-h-0">
           <h4 className="text-sm font-medium text-muted-foreground mb-3">
-            Previous Notes ({lead.notes?.length || 0})
+            Previous Notes ({safeLead.notes?.length || 0})
           </h4>
           
-          {(!lead.notes || lead.notes.length === 0) ? (
+          {(!safeLead.notes || safeLead.notes.length === 0) ? (
             <div className="text-center py-8 text-muted-foreground">
               <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-50" />
               <p>No notes yet</p>
@@ -112,7 +113,7 @@ export function LeadNotesDialog({ open, onClose, lead, onUpdateNotes }: LeadNote
           ) : (
             <ScrollArea className="h-[250px] pr-4">
               <div className="space-y-3">
-                {lead.notes.map((note, index) => {
+                {safeLead.notes.map((note, index) => {
                   // Parse timestamp from note
                   const match = note.match(/^\[(.*?)\]\s*(.*)/);
                   const timestamp = match ? match[1] : '';
