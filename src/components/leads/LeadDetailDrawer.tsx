@@ -31,16 +31,29 @@ interface LeadDetailDrawerProps {
 }
 
 export function LeadDetailDrawer({ lead, open, onClose, onEdit, onViewNotes }: LeadDetailDrawerProps) {
-  const statusConfig = lead ? STATUS_CONFIG[lead.status] : null;
-  const initials = lead?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || '';
+
+  if (!lead) {
+    return (
+      <Sheet open={false} onOpenChange={onClose}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Loading...</SheetTitle>
+          </SheetHeader>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  const currentStatusConfig = STATUS_CONFIG[lead.status];
+  const currentInitials = lead.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
   return (
-    <Sheet open={open && !!lead} onOpenChange={onClose}>
+    <Sheet open={open} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader className="space-y-4">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center ring-4 ring-background shadow-lg">
-              <span className="text-xl font-bold text-primary">{initials}</span>
+              <span className="text-xl font-bold text-primary">{currentInitials}</span>
             </div>
             <div className="flex-1">
               <SheetTitle className="text-xl">{lead.name}</SheetTitle>
@@ -55,12 +68,12 @@ export function LeadDetailDrawer({ lead, open, onClose, onEdit, onViewNotes }: L
           <Badge
             className="w-fit"
             style={{
-              backgroundColor: `${statusConfig.color}20`,
-              color: statusConfig.color,
-              borderColor: `${statusConfig.color}40`,
+              backgroundColor: `${currentStatusConfig.color}20`,
+              color: currentStatusConfig.color,
+              borderColor: `${currentStatusConfig.color}40`,
             }}
           >
-            {statusConfig.label}
+            {currentStatusConfig.label}
           </Badge>
         </SheetHeader>
 
