@@ -152,6 +152,8 @@ export default function Pipeline() {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, notes, updatedAt: new Date() } : l))
     );
+    // Also update the notesLead state so the dialog shows the updated notes
+    setNotesLead((prev) => prev && prev.id === leadId ? { ...prev, notes, updatedAt: new Date() } : prev);
   };
 
   const handleSubmitLead = (leadData: Partial<Lead>) => {
