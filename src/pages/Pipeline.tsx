@@ -16,7 +16,7 @@ import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
 import { LeadNotesDialog } from '@/components/leads/LeadNotesDialog';
 import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
-import { mockLeads } from '@/data/mockData';
+import { useLeads } from '@/contexts/LeadsContext';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { TrendingUp, Users, IndianRupee, Target, ArrowRight, Filter, Search } from 'lucide-react';
@@ -41,7 +41,7 @@ const PIPELINE_STATUSES: LeadStatus[] = [
 ];
 
 export default function Pipeline() {
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const { leads, setLeads, updateNotes, addLead, deleteLead } = useLeads();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
@@ -49,7 +49,7 @@ export default function Pipeline() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSource, setFilterSource] = useState<string>('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [notesLead, setNotesLead] = useState<Lead | null>(null);
+  const [notesLeadId, setNotesLeadId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const sensors = useSensors(
@@ -61,6 +61,7 @@ export default function Pipeline() {
   );
 
   const activeLead = activeId ? leads.find((l) => l.id === activeId) : null;
+  const notesLead = notesLeadId ? leads.find((l) => l.id === notesLeadId) || null : null;
 
   // Calculate pipeline stats
   const stats = useMemo(() => {
@@ -131,7 +132,7 @@ export default function Pipeline() {
   };
 
   const handleDeleteLead = (leadId: string) => {
-    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    deleteLead(leadId);
     toast({
       title: 'Lead Deleted',
       description: 'The lead has been removed.',
@@ -144,16 +145,12 @@ export default function Pipeline() {
   };
 
   const handleViewNotes = (lead: Lead) => {
-    setNotesLead(lead);
+    setNotesLeadId(lead.id);
     setSelectedLead(null);
   };
 
   const handleUpdateNotes = (leadId: string, notes: Lead['notes']) => {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, notes, updatedAt: new Date() } : l))
-    );
-    // Also update the notesLead state so the dialog shows the updated notes
-    setNotesLead((prev) => prev && prev.id === leadId ? { ...prev, notes, updatedAt: new Date() } : prev);
+    updateNotes(leadId, notes);
   };
 
   const handleSubmitLead = (leadData: Partial<Lead>) => {
@@ -174,7 +171,7 @@ export default function Pipeline() {
         updatedAt: new Date(),
         notes: [],
       } as Lead;
-      setLeads((prev) => [...prev, newLead]);
+      addLead(newLead);
       toast({
         title: '🎉 Lead Created',
         description: 'New lead has been added to the pipeline.',
@@ -333,7 +330,7 @@ export default function Pipeline() {
       <LeadNotesDialog
         lead={notesLead}
         open={!!notesLead}
-        onClose={() => setNotesLead(null)}
+        onClose={() => setNotesLeadId(null)}
         onUpdateNotes={handleUpdateNotes}
       />
     </MainLayout>

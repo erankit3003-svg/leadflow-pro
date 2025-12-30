@@ -5,7 +5,7 @@ import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadNotesDialog } from '@/components/leads/LeadNotesDialog';
 import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
-import { mockLeads } from '@/data/mockData';
+import { useLeads } from '@/contexts/LeadsContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,13 +21,15 @@ import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
 export default function Leads() {
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const { leads, setLeads, updateNotes, addLead, deleteLead } = useLeads();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
-  const [notesLead, setNotesLead] = useState<Lead | undefined>();
+  const [notesLeadId, setNotesLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
   const { toast } = useToast();
+
+  const notesLead = notesLeadId ? leads.find((l) => l.id === notesLeadId) || null : null;
 
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch =
@@ -51,7 +53,7 @@ export default function Leads() {
   };
 
   const handleDeleteLead = (leadId: string) => {
-    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    deleteLead(leadId);
     toast({
       title: 'Lead Deleted',
       description: 'The lead has been removed.',
@@ -69,7 +71,15 @@ export default function Leads() {
         description: 'Lead information has been updated.',
       });
     } else {
-      setLeads((prev) => [...prev, leadData as Lead]);
+      const newLead: Lead = {
+        id: `lead-${Date.now()}`,
+        ...leadData,
+        status: 'new',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        notes: [],
+      } as Lead;
+      addLead(newLead);
       toast({
         title: 'Lead Created',
         description: 'New lead has been added.',
@@ -78,15 +88,11 @@ export default function Leads() {
   };
 
   const handleViewNotes = (lead: Lead) => {
-    setNotesLead(lead);
+    setNotesLeadId(lead.id);
   };
 
-  const handleUpdateNotes = (leadId: string, notes: string[]) => {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, notes, updatedAt: new Date() } : l))
-    );
-    // Update notesLead to reflect changes
-    setNotesLead((prev) => prev && prev.id === leadId ? { ...prev, notes } : prev);
+  const handleUpdateNotes = (leadId: string, notes: Lead['notes']) => {
+    updateNotes(leadId, notes);
     toast({
       title: 'Notes Updated',
       description: 'Lead notes have been saved.',
@@ -195,14 +201,12 @@ export default function Leads() {
         lead={editingLead}
       />
 
-      {notesLead && (
-        <LeadNotesDialog
-          open={!!notesLead}
-          onClose={() => setNotesLead(undefined)}
-          lead={notesLead}
-          onUpdateNotes={handleUpdateNotes}
-        />
-      )}
+      <LeadNotesDialog
+        lead={notesLead}
+        open={!!notesLead}
+        onClose={() => setNotesLeadId(null)}
+        onUpdateNotes={handleUpdateNotes}
+      />
     </MainLayout>
   );
 }
