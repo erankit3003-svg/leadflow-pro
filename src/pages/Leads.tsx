@@ -4,6 +4,7 @@ import { Header } from '@/components/layout/Header';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadNotesDialog } from '@/components/leads/LeadNotesDialog';
+import { CsvImportDialog } from '@/components/leads/CsvImportDialog';
 import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
 import { useLeads } from '@/contexts/LeadsContext';
 import { useToast } from '@/hooks/use-toast';
@@ -16,13 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Filter, Download, LayoutGrid, List } from 'lucide-react';
+import { Search, Filter, Download, LayoutGrid, List, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
 export default function Leads() {
   const { leads, setLeads, updateNotes, addLead, deleteLead } = useLeads();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
   const [notesLeadId, setNotesLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,6 +101,10 @@ export default function Leads() {
     });
   };
 
+  const handleImportLeads = (importedLeads: Lead[]) => {
+    importedLeads.forEach(lead => addLead(lead));
+  };
+
   const handleExportCSV = () => {
     const headers = ['Name', 'Email', 'Phone', 'Company', 'Status', 'Value', 'Source'];
     const csvContent = [
@@ -169,6 +175,10 @@ export default function Leads() {
           </div>
 
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsCsvImportOpen(true)} className="gap-1">
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Import CSV</span>
+            </Button>
             <Button variant="outline" size="icon" onClick={handleExportCSV} title="Export to CSV">
               <Download className="h-4 w-4" />
             </Button>
@@ -206,6 +216,12 @@ export default function Leads() {
         open={!!notesLead}
         onClose={() => setNotesLeadId(null)}
         onUpdateNotes={handleUpdateNotes}
+      />
+
+      <CsvImportDialog
+        open={isCsvImportOpen}
+        onClose={() => setIsCsvImportOpen(false)}
+        onImport={handleImportLeads}
       />
     </MainLayout>
   );
