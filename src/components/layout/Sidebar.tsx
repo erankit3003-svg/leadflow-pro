@@ -8,16 +8,19 @@ import {
   Settings,
   LogOut,
   TrendingUp,
-  Bell,
+  Building2,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Leads', href: '/leads', icon: Users },
   { name: 'Pipeline', href: '/pipeline', icon: Kanban },
   { name: 'Follow-ups', href: '/follow-ups', icon: Calendar },
+  { name: 'Companies', href: '/companies', icon: Building2 },
+  { name: 'Employees', href: '/employees', icon: UserCog },
   { name: 'Reports', href: '/reports', icon: TrendingUp },
   { name: 'Invoices', href: '/invoices', icon: FileText },
 ];
@@ -26,7 +29,16 @@ const secondaryNavigation = [{ name: 'Settings', href: '/settings', icon: Settin
 
 export function Sidebar() {
   const location = useLocation();
-  const { toast } = useToast();
+  const { profile, role, signOut } = useAuth();
+
+  const initials = profile?.full_name
+    ? profile.full_name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : 'U';
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 gradient-sidebar border-r border-sidebar-border">
@@ -43,7 +55,7 @@ export function Sidebar() {
         </div>
 
         {/* Main Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           <p className="px-4 text-xs font-semibold uppercase tracking-wider text-sidebar-muted mb-2">
             Main Menu
           </p>
@@ -91,23 +103,20 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-sidebar-accent flex items-center justify-center">
-              <span className="text-sm font-semibold text-sidebar-foreground">AK</span>
+              <span className="text-sm font-semibold text-sidebar-foreground">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                Amit Kumar
+                {profile?.full_name || 'User'}
               </p>
-              <p className="text-xs text-sidebar-muted truncate">Admin</p>
+              <p className="text-xs text-sidebar-muted truncate capitalize">
+                {role?.replace('_', ' ') || 'Loading...'}
+              </p>
             </div>
             <button
               type="button"
               className="p-2 rounded-lg text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-              onClick={() =>
-                toast({
-                  title: 'Logout',
-                  description: 'Authentication will be added next (this is a mock app right now).',
-                })
-              }
+              onClick={signOut}
               aria-label="Log out"
             >
               <LogOut className="h-4 w-4" />
