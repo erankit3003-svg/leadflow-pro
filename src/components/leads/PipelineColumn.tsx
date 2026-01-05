@@ -17,9 +17,9 @@ interface PipelineColumnProps {
 const STATUS_ICONS: Record<LeadStatus, string> = {
   'new': '✨',
   'contacted': '📞',
-  'follow-up': '📅',
+  'follow_up': '📅',
   'interested': '🎯',
-  'proposal': '📄',
+  'proposal_sent': '📄',
   'won': '🏆',
   'lost': '❌',
 };
@@ -27,9 +27,9 @@ const STATUS_ICONS: Record<LeadStatus, string> = {
 const STATUS_GRADIENTS: Record<LeadStatus, string> = {
   'new': 'from-blue-500/20 to-blue-600/5',
   'contacted': 'from-indigo-500/20 to-indigo-600/5',
-  'follow-up': 'from-amber-500/20 to-amber-600/5',
+  'follow_up': 'from-amber-500/20 to-amber-600/5',
   'interested': 'from-teal-500/20 to-teal-600/5',
-  'proposal': 'from-purple-500/20 to-purple-600/5',
+  'proposal_sent': 'from-purple-500/20 to-purple-600/5',
   'won': 'from-emerald-500/20 to-emerald-600/5',
   'lost': 'from-red-500/20 to-red-600/5',
 };
@@ -37,9 +37,9 @@ const STATUS_GRADIENTS: Record<LeadStatus, string> = {
 const STATUS_HEADER_COLORS: Record<LeadStatus, string> = {
   'new': 'bg-blue-500',
   'contacted': 'bg-indigo-500',
-  'follow-up': 'bg-amber-500',
+  'follow_up': 'bg-amber-500',
   'interested': 'bg-teal-500',
-  'proposal': 'bg-purple-500',
+  'proposal_sent': 'bg-purple-500',
   'won': 'bg-emerald-500',
   'lost': 'bg-red-500',
 };

@@ -60,6 +60,7 @@ export type Database = {
           created_by: string | null
           id: string
           lead_id: string
+          tenant_id: string | null
           updated_at: string
         }
         Insert: {
@@ -68,6 +69,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           lead_id: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -76,6 +78,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           lead_id?: string
+          tenant_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -84,6 +87,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -103,6 +113,7 @@ export type Database = {
           requirement: string | null
           source: string | null
           status: Database["public"]["Enums"]["lead_status"]
+          tenant_id: string | null
           updated_at: string
           value: number | null
           won_reason: string | null
@@ -121,6 +132,7 @@ export type Database = {
           requirement?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
+          tenant_id?: string | null
           updated_at?: string
           value?: number | null
           won_reason?: string | null
@@ -139,6 +151,7 @@ export type Database = {
           requirement?: string | null
           source?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
+          tenant_id?: string | null
           updated_at?: string
           value?: number | null
           won_reason?: string | null
@@ -147,6 +160,13 @@ export type Database = {
           {
             foreignKeyName: "leads_company_id_fkey"
             columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
@@ -186,6 +206,44 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_memberships: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_memberships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -212,11 +270,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_tenant_admin: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_tenant_member: {
+        Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
     }

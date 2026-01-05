@@ -15,11 +15,12 @@ import { LeadCard } from '@/components/leads/LeadCard';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
 import { LeadNotesDialog } from '@/components/leads/LeadNotesDialog';
-import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
+import { Lead, LeadStatus, LeadNote, STATUS_CONFIG } from '@/types/lead';
 import { useLeads } from '@/contexts/LeadsContext';
+import { useTenant } from '@/contexts/TenantContext';
 import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
-import { TrendingUp, Users, IndianRupee, Target, ArrowRight, Filter, Search } from 'lucide-react';
+import { TrendingUp, Users, IndianRupee, Target, ArrowRight, Filter, Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,19 +30,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Link } from 'react-router-dom';
 
 const PIPELINE_STATUSES: LeadStatus[] = [
   'new',
   'contacted',
-  'follow-up',
+  'follow_up',
   'interested',
-  'proposal',
+  'proposal_sent',
   'won',
   'lost',
 ];
 
 export default function Pipeline() {
-  const { leads, setLeads, updateNotes, addLead, deleteLead } = useLeads();
+  const { leads, loading, updateLead, updateNotes, addLead, deleteLead } = useLeads();
+  const { activeTenant } = useTenant();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
@@ -81,8 +84,8 @@ export default function Pipeline() {
     return leads.filter(lead => {
       const matchesSearch = searchQuery === '' || 
         lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.requirement.toLowerCase().includes(searchQuery.toLowerCase());
+        (lead.company?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (lead.requirement?.toLowerCase() || '').includes(searchQuery.toLowerCase());
       
       const matchesSource = filterSource === 'all' || lead.source === filterSource;
       
@@ -94,7 +97,7 @@ export default function Pipeline() {
     setActiveId(event.active.id as string);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
@@ -106,18 +109,19 @@ export default function Pipeline() {
     const lead = leads.find(l => l.id === leadId);
     if (!lead || lead.status === newStatus) return;
 
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === leadId
-          ? { ...lead, status: newStatus, updatedAt: new Date() }
-          : lead
-      )
-    );
-
-    toast({
-      title: '🎯 Lead Updated',
-      description: `${lead.name} moved to ${STATUS_CONFIG[newStatus].label}`,
-    });
+    try {
+      await updateLead(leadId, { status: newStatus });
+      toast({
+        title: '🎯 Lead Updated',
+        description: `${lead.name} moved to ${STATUS_CONFIG[newStatus].label}`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update lead status.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleAddLead = (status?: LeadStatus) => {
@@ -131,13 +135,21 @@ export default function Pipeline() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteLead = (leadId: string) => {
-    deleteLead(leadId);
-    toast({
-      title: 'Lead Deleted',
-      description: 'The lead has been removed.',
-      variant: 'destructive',
-    });
+  const handleDeleteLead = async (leadId: string) => {
+    try {
+      await deleteLead(leadId);
+      toast({
+        title: 'Lead Deleted',
+        description: 'The lead has been removed.',
+        variant: 'destructive',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete lead.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleViewDetails = (lead: Lead) => {
@@ -149,35 +161,73 @@ export default function Pipeline() {
     setSelectedLead(null);
   };
 
-  const handleUpdateNotes = (leadId: string, notes: Lead['notes']) => {
+  const handleUpdateNotes = (leadId: string, notes: LeadNote[]) => {
     updateNotes(leadId, notes);
   };
 
-  const handleSubmitLead = (leadData: Partial<Lead>) => {
-    if (editingLead) {
-      setLeads((prev) =>
-        prev.map((l) => (l.id === editingLead.id ? { ...l, ...leadData } as Lead : l))
-      );
+  const handleSubmitLead = async (leadData: Partial<Lead>) => {
+    try {
+      if (editingLead) {
+        await updateLead(editingLead.id, leadData);
+        toast({
+          title: 'Lead Updated',
+          description: 'Lead information has been updated.',
+        });
+      } else {
+        await addLead({
+          name: leadData.name || '',
+          email: leadData.email || null,
+          phone: leadData.phone || null,
+          company: leadData.company || null,
+          companyId: null,
+          tenantId: activeTenant?.id || null,
+          requirement: leadData.requirement || null,
+          source: leadData.source || null,
+          value: leadData.value || 0,
+          status: defaultStatus,
+          assignedTo: leadData.assignedTo || null,
+          followUpDate: leadData.followUpDate || null,
+          createdBy: null,
+          wonReason: null,
+          lostReason: null,
+        });
+        toast({
+          title: '🎉 Lead Created',
+          description: 'New lead has been added to the pipeline.',
+        });
+      }
+      setIsFormOpen(false);
+    } catch (error) {
       toast({
-        title: 'Lead Updated',
-        description: 'Lead information has been updated.',
-      });
-    } else {
-      const newLead: Lead = {
-        id: `lead-${Date.now()}`,
-        ...leadData,
-        status: defaultStatus,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        notes: [],
-      } as Lead;
-      addLead(newLead);
-      toast({
-        title: '🎉 Lead Created',
-        description: 'New lead has been added to the pipeline.',
+        title: 'Error',
+        description: 'Failed to save lead.',
+        variant: 'destructive',
       });
     }
   };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!activeTenant) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+          <p className="text-muted-foreground">Please select or create a company to manage leads.</p>
+          <Link to="/companies">
+            <Button>Go to Companies</Button>
+          </Link>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

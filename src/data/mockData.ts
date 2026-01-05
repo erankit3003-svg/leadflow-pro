@@ -1,4 +1,11 @@
-import { Lead, FollowUp, Activity } from '@/types/lead';
+import { Lead, LeadNote, FollowUp, Activity } from '@/types/lead';
+
+const createNote = (content: string): LeadNote => ({
+  id: `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  content,
+  createdAt: new Date(),
+  createdBy: null,
+});
 
 export const mockLeads: Lead[] = [
   {
@@ -14,7 +21,7 @@ export const mockLeads: Lead[] = [
     assignedTo: 'Amit Kumar',
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-01-15'),
-    notes: ['Initial inquiry via contact form'],
+    notes: [createNote('Initial inquiry via contact form')],
   },
   {
     id: '2',
@@ -30,7 +37,7 @@ export const mockLeads: Lead[] = [
     createdAt: new Date('2024-01-14'),
     updatedAt: new Date('2024-01-16'),
     followUpDate: new Date('2024-01-18'),
-    notes: ['Referred by existing client', 'Interested in basic package'],
+    notes: [createNote('Referred by existing client'), createNote('Interested in basic package')],
   },
   {
     id: '3',
@@ -40,13 +47,13 @@ export const mockLeads: Lead[] = [
     company: 'Global Retail Ltd',
     requirement: 'Sales Analytics Dashboard',
     source: 'social',
-    status: 'follow-up',
+    status: 'follow_up',
     value: 420000,
     assignedTo: 'Amit Kumar',
     createdAt: new Date('2024-01-10'),
     updatedAt: new Date('2024-01-17'),
     followUpDate: new Date('2024-01-17'),
-    notes: ['Met at trade show', 'Need demo next week'],
+    notes: [createNote('Met at trade show'), createNote('Need demo next week')],
   },
   {
     id: '4',
@@ -61,7 +68,7 @@ export const mockLeads: Lead[] = [
     assignedTo: 'Sneha Gupta',
     createdAt: new Date('2024-01-08'),
     updatedAt: new Date('2024-01-16'),
-    notes: ['High budget client', 'Wants custom features'],
+    notes: [createNote('High budget client'), createNote('Wants custom features')],
   },
   {
     id: '5',
@@ -71,12 +78,12 @@ export const mockLeads: Lead[] = [
     company: 'Builders Group',
     requirement: 'Project Management Integration',
     source: 'cold-call',
-    status: 'proposal',
+    status: 'proposal_sent',
     value: 380000,
     assignedTo: 'Amit Kumar',
     createdAt: new Date('2024-01-05'),
     updatedAt: new Date('2024-01-15'),
-    notes: ['Proposal sent on Jan 15', 'Waiting for approval'],
+    notes: [createNote('Proposal sent on Jan 15'), createNote('Waiting for approval')],
   },
   {
     id: '6',
@@ -91,7 +98,7 @@ export const mockLeads: Lead[] = [
     assignedTo: 'Sneha Gupta',
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-12'),
-    notes: ['Deal closed!', 'Implementation starts Feb 1'],
+    notes: [createNote('Deal closed!'), createNote('Implementation starts Feb 1')],
   },
   {
     id: '7',
@@ -107,7 +114,7 @@ export const mockLeads: Lead[] = [
     createdAt: new Date('2024-01-03'),
     updatedAt: new Date('2024-01-10'),
     lostReason: 'Budget constraints',
-    notes: ['Lost due to budget', 'May revisit next quarter'],
+    notes: [createNote('Lost due to budget'), createNote('May revisit next quarter')],
   },
   {
     id: '8',
@@ -123,7 +130,7 @@ export const mockLeads: Lead[] = [
     createdAt: new Date('2024-01-12'),
     updatedAt: new Date('2024-01-17'),
     followUpDate: new Date('2024-01-19'),
-    notes: ['Shopify integration needed'],
+    notes: [createNote('Shopify integration needed')],
   },
 ];
 
