@@ -7,8 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Lead, LeadSource, LeadStatus } from '@/types/lead';
+import { Lead, LeadStatus } from '@/types/lead';
 import { Upload, Download, FileSpreadsheet, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,12 +21,12 @@ interface CsvImportDialogProps {
 const SAMPLE_CSV = `name,email,phone,company,requirement,source,status,value
 Rahul Sharma,rahul@example.com,9876543210,TechCorp India,Website Development,website,new,50000
 Priya Patel,priya@business.com,9123456789,StartupXYZ,Mobile App,referral,contacted,150000
-Amit Kumar,amit@gmail.com,8765432109,Digital Solutions,SEO Services,social,follow-up,25000
+Amit Kumar,amit@gmail.com,8765432109,Digital Solutions,SEO Services,social,follow_up,25000
 Sneha Reddy,sneha@company.co,7654321098,CloudTech,Cloud Migration,email,interested,200000
-Vikram Singh,vikram@enterprise.in,6543210987,MegaCorp,ERP Implementation,cold-call,proposal,500000`;
+Vikram Singh,vikram@enterprise.in,6543210987,MegaCorp,ERP Implementation,cold-call,proposal_sent,500000`;
 
-const VALID_SOURCES: LeadSource[] = ['website', 'referral', 'social', 'cold-call', 'email', 'advertisement', 'other'];
-const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'follow-up', 'interested', 'proposal', 'won', 'lost'];
+const VALID_SOURCES = ['website', 'referral', 'social', 'cold-call', 'email', 'advertisement', 'other'];
+const VALID_STATUSES: LeadStatus[] = ['new', 'contacted', 'follow_up', 'interested', 'proposal_sent', 'won', 'lost'];
 
 export function CsvImportDialog({ open, onClose, onImport }: CsvImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -93,9 +92,9 @@ export function CsvImportDialog({ open, onClose, onImport }: CsvImportDialogProp
       }
 
       // Validate and normalize source
-      let source: LeadSource = 'other';
+      let source = 'other';
       if (row.source) {
-        const normalizedSource = row.source.toLowerCase().replace(/\s+/g, '-') as LeadSource;
+        const normalizedSource = row.source.toLowerCase().replace(/\s+/g, '-');
         if (VALID_SOURCES.includes(normalizedSource)) {
           source = normalizedSource;
         }
@@ -104,7 +103,7 @@ export function CsvImportDialog({ open, onClose, onImport }: CsvImportDialogProp
       // Validate and normalize status
       let status: LeadStatus = 'new';
       if (row.status) {
-        const normalizedStatus = row.status.toLowerCase().replace(/\s+/g, '-') as LeadStatus;
+        const normalizedStatus = row.status.toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_') as LeadStatus;
         if (VALID_STATUSES.includes(normalizedStatus)) {
           status = normalizedStatus;
         }
@@ -118,7 +117,7 @@ export function CsvImportDialog({ open, onClose, onImport }: CsvImportDialogProp
         name: row.name,
         email: row.email,
         phone: row.phone,
-        company: row.company || undefined,
+        company: row.company || null,
         requirement: row.requirement,
         source,
         status,
@@ -303,7 +302,7 @@ export function CsvImportDialog({ open, onClose, onImport }: CsvImportDialogProp
                       <td className="p-2">{lead.name}</td>
                       <td className="p-2">{lead.email}</td>
                       <td className="p-2">₹{lead.value.toLocaleString()}</td>
-                      <td className="p-2 capitalize">{lead.status}</td>
+                      <td className="p-2 capitalize">{lead.status.replace('_', ' ')}</td>
                     </tr>
                   ))}
                 </tbody>

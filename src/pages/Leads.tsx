@@ -5,8 +5,9 @@ import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { LeadNotesDialog } from '@/components/leads/LeadNotesDialog';
 import { CsvImportDialog } from '@/components/leads/CsvImportDialog';
-import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
+import { Lead, LeadStatus, LeadNote, STATUS_CONFIG } from '@/types/lead';
 import { useLeads } from '@/contexts/LeadsContext';
+import { useTenant } from '@/contexts/TenantContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,12 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Filter, Download, LayoutGrid, List, Upload } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Search, Filter, Download, LayoutGrid, List, Upload, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Leads() {
-  const { leads, setLeads, updateNotes, addLead, deleteLead } = useLeads();
+  const { leads, loading, updateLead, updateNotes, addLead, deleteLead } = useLeads();
+  const { activeTenant } = useTenant();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | undefined>();
@@ -36,8 +37,8 @@ export default function Leads() {
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch =
       lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.company?.toLowerCase().includes(searchQuery.toLowerCase());
+      (lead.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (lead.company?.toLowerCase() || '').includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
 
@@ -54,37 +55,60 @@ export default function Leads() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteLead = (leadId: string) => {
-    deleteLead(leadId);
-    toast({
-      title: 'Lead Deleted',
-      description: 'The lead has been removed.',
-      variant: 'destructive',
-    });
+  const handleDeleteLead = async (leadId: string) => {
+    try {
+      await deleteLead(leadId);
+      toast({
+        title: 'Lead Deleted',
+        description: 'The lead has been removed.',
+        variant: 'destructive',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete lead.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleSubmitLead = (leadData: Partial<Lead>) => {
-    if (editingLead) {
-      setLeads((prev) =>
-        prev.map((l) => (l.id === editingLead.id ? { ...l, ...leadData } as Lead : l))
-      );
+  const handleSubmitLead = async (leadData: Partial<Lead>) => {
+    try {
+      if (editingLead) {
+        await updateLead(editingLead.id, leadData);
+        toast({
+          title: 'Lead Updated',
+          description: 'Lead information has been updated.',
+        });
+      } else {
+        await addLead({
+          name: leadData.name || '',
+          email: leadData.email || null,
+          phone: leadData.phone || null,
+          company: leadData.company || null,
+          companyId: null,
+          tenantId: activeTenant?.id || null,
+          requirement: leadData.requirement || null,
+          source: leadData.source || null,
+          value: leadData.value || 0,
+          status: 'new',
+          assignedTo: leadData.assignedTo || null,
+          followUpDate: leadData.followUpDate || null,
+          createdBy: null,
+          wonReason: null,
+          lostReason: null,
+        });
+        toast({
+          title: 'Lead Created',
+          description: 'New lead has been added.',
+        });
+      }
+      setIsFormOpen(false);
+    } catch (error) {
       toast({
-        title: 'Lead Updated',
-        description: 'Lead information has been updated.',
-      });
-    } else {
-      const newLead: Lead = {
-        id: `lead-${Date.now()}`,
-        ...leadData,
-        status: 'new',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        notes: [],
-      } as Lead;
-      addLead(newLead);
-      toast({
-        title: 'Lead Created',
-        description: 'New lead has been added.',
+        title: 'Error',
+        description: 'Failed to save lead.',
+        variant: 'destructive',
       });
     }
   };
@@ -93,7 +117,7 @@ export default function Leads() {
     setNotesLeadId(lead.id);
   };
 
-  const handleUpdateNotes = (leadId: string, notes: Lead['notes']) => {
+  const handleUpdateNotes = (leadId: string, notes: LeadNote[]) => {
     updateNotes(leadId, notes);
     toast({
       title: 'Notes Updated',
@@ -101,8 +125,26 @@ export default function Leads() {
     });
   };
 
-  const handleImportLeads = (importedLeads: Lead[]) => {
-    importedLeads.forEach(lead => addLead(lead));
+  const handleImportLeads = async (importedLeads: Lead[]) => {
+    for (const lead of importedLeads) {
+      await addLead({
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        company: lead.company,
+        companyId: null,
+        tenantId: activeTenant?.id || null,
+        requirement: lead.requirement,
+        source: lead.source,
+        value: lead.value,
+        status: lead.status || 'new',
+        assignedTo: lead.assignedTo,
+        followUpDate: lead.followUpDate,
+        createdBy: null,
+        wonReason: null,
+        lostReason: null,
+      });
+    }
   };
 
   const handleExportCSV = () => {
@@ -111,12 +153,12 @@ export default function Leads() {
       headers.join(','),
       ...filteredLeads.map(lead => [
         `"${lead.name}"`,
-        `"${lead.email}"`,
-        `"${lead.phone}"`,
+        `"${lead.email || ''}"`,
+        `"${lead.phone || ''}"`,
         `"${lead.company || ''}"`,
         lead.status,
         lead.value,
-        lead.source
+        lead.source || ''
       ].join(','))
     ].join('\n');
     
@@ -131,6 +173,29 @@ export default function Leads() {
       description: `${filteredLeads.length} leads exported to CSV.`,
     });
   };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!activeTenant) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+          <p className="text-muted-foreground">Please select or create a company to manage leads.</p>
+          <Link to="/companies">
+            <Button>Go to Companies</Button>
+          </Link>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
