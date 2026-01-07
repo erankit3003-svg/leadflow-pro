@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/contexts/TenantContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Building2, Search, Globe, Phone, Mail, MapPin, Users, Loader2, Check } from 'lucide-react';
+import { Plus, Building2, Search, Globe, Phone, Mail, MapPin, Users, Loader2, Check, Trash2, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -42,7 +42,7 @@ interface Company {
 }
 
 export default function Companies() {
-  const { user } = useAuth();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
   const { tenants, refreshTenants, activeTenant } = useTenant();
   const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -50,6 +50,7 @@ export default function Companies() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [joiningCompanyId, setJoiningCompanyId] = useState<string | null>(null);
+  const [deletingCompanyId, setDeletingCompanyId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -201,6 +202,53 @@ export default function Companies() {
     setJoiningCompanyId(null);
   };
 
+  const handleDeleteCompany = async (companyId: string) => {
+    if (!isSuperAdmin) {
+      toast({
+        variant: 'destructive',
+        title: 'Access Denied',
+        description: 'Only Super Admins can delete companies',
+      });
+      return;
+    }
+
+    setDeletingCompanyId(companyId);
+
+    // First delete all memberships for this company
+    const { error: membershipError } = await supabase
+      .from('tenant_memberships')
+      .delete()
+      .eq('company_id', companyId);
+
+    if (membershipError) {
+      console.error('Error deleting memberships:', membershipError);
+    }
+
+    // Then delete the company
+    const { error } = await supabase
+      .from('companies')
+      .delete()
+      .eq('id', companyId);
+
+    if (error) {
+      console.error('Error deleting company:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete company',
+      });
+    } else {
+      toast({
+        title: 'Deleted',
+        description: 'Company has been deleted.',
+      });
+      await refreshTenants();
+      fetchCompanies();
+    }
+
+    setDeletingCompanyId(null);
+  };
+
   const filteredCompanies = companies.filter((company) =>
     company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     company.industry?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -230,14 +278,39 @@ export default function Companies() {
           />
         </div>
 
+        {/* Super Admin Banner */}
+        {isSuperAdmin && (
+          <Card className="bg-yellow-500/10 border-yellow-500/30">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-yellow-500" />
+                <p className="text-sm font-medium">
+                  Super Admin Mode: You have full access to view and manage all companies.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                My Companies
+                {isSuperAdmin ? 'Total Companies' : 'My Companies'}
               </CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{isSuperAdmin ? companies.length : myCompanies.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                My Memberships
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{myCompanies.length}</div>
@@ -280,18 +353,19 @@ export default function Companies() {
                     <TableHead>Industry</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Website</TableHead>
+                    {isSuperAdmin && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-8">
                         <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
                   ) : myCompanies.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={isSuperAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">
                         You haven't joined any companies yet. Create one or join an existing company below.
                       </TableCell>
                     </TableRow>
@@ -360,6 +434,22 @@ export default function Companies() {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
+                        {isSuperAdmin && (
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteCompany(company.id)}
+                              disabled={deletingCompanyId === company.id}
+                            >
+                              {deletingCompanyId === company.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
