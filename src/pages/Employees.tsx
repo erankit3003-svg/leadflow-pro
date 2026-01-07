@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Search, Shield, UserCog, Mail, Phone } from 'lucide-react';
+import { Plus, Users, Search, Shield, UserCog, Mail, Phone, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Employee {
@@ -41,11 +41,11 @@ interface Employee {
   phone: string | null;
   avatar_url: string | null;
   created_at: string;
-  role: 'admin' | 'sales_executive';
+  role: 'super_admin' | 'admin' | 'sales_executive';
 }
 
 export default function Employees() {
-  const { role: currentUserRole } = useAuth();
+  const { role: currentUserRole, isSuperAdmin, isAdmin } = useAuth();
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,8 +97,18 @@ export default function Employees() {
     fetchEmployees();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: 'admin' | 'sales_executive') => {
-    if (currentUserRole !== 'admin') {
+  const handleRoleChange = async (userId: string, newRole: 'super_admin' | 'admin' | 'sales_executive') => {
+    // Only super_admin can assign super_admin role
+    if (newRole === 'super_admin' && !isSuperAdmin) {
+      toast({
+        variant: 'destructive',
+        title: 'Access Denied',
+        description: 'Only Super Admins can assign Super Admin role',
+      });
+      return;
+    }
+    
+    if (!isAdmin) {
       toast({
         variant: 'destructive',
         title: 'Access Denied',
@@ -133,6 +143,7 @@ export default function Employees() {
     employee.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const superAdminCount = employees.filter((e) => e.role === 'super_admin').length;
   const adminCount = employees.filter((e) => e.role === 'admin').length;
   const salesCount = employees.filter((e) => e.role === 'sales_executive').length;
 
@@ -159,7 +170,7 @@ export default function Employees() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -169,6 +180,17 @@ export default function Employees() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{employees.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Super Admins
+              </CardTitle>
+              <Crown className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{superAdminCount}</div>
             </CardContent>
           </Card>
           <Card>
@@ -215,7 +237,7 @@ export default function Employees() {
                   <TableHead>Contact</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Joined</TableHead>
-                  {currentUserRole === 'admin' && <TableHead>Actions</TableHead>}
+                  {isAdmin && <TableHead>Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -267,10 +289,12 @@ export default function Employees() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={employee.role === 'admin' ? 'default' : 'secondary'}
-                          className={employee.role === 'admin' ? 'bg-primary' : ''}
+                          variant={employee.role === 'super_admin' ? 'default' : employee.role === 'admin' ? 'default' : 'secondary'}
+                          className={employee.role === 'super_admin' ? 'bg-yellow-500 text-black' : employee.role === 'admin' ? 'bg-primary' : ''}
                         >
-                          {employee.role === 'admin' ? (
+                          {employee.role === 'super_admin' ? (
+                            <><Crown className="h-3 w-3 mr-1" /> Super Admin</>
+                          ) : employee.role === 'admin' ? (
                             <><Shield className="h-3 w-3 mr-1" /> Admin</>
                           ) : (
                             <><UserCog className="h-3 w-3 mr-1" /> Sales Executive</>
@@ -280,18 +304,22 @@ export default function Employees() {
                       <TableCell className="text-muted-foreground">
                         {format(new Date(employee.created_at), 'MMM dd, yyyy')}
                       </TableCell>
-                      {currentUserRole === 'admin' && (
+                      {isAdmin && (
                         <TableCell>
                           <Select
                             value={employee.role}
                             onValueChange={(value) =>
-                              handleRoleChange(employee.user_id, value as 'admin' | 'sales_executive')
+                              handleRoleChange(employee.user_id, value as 'super_admin' | 'admin' | 'sales_executive')
                             }
+                            disabled={employee.role === 'super_admin' && !isSuperAdmin}
                           >
-                            <SelectTrigger className="w-[160px]">
+                            <SelectTrigger className="w-[180px]">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                              {isSuperAdmin && (
+                                <SelectItem value="super_admin">Super Admin</SelectItem>
+                              )}
                               <SelectItem value="admin">Admin</SelectItem>
                               <SelectItem value="sales_executive">Sales Executive</SelectItem>
                             </SelectContent>
