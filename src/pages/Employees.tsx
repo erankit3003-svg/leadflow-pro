@@ -45,11 +45,19 @@ interface Employee {
 }
 
 export default function Employees() {
-  const { role: currentUserRole, isSuperAdmin, isAdmin } = useAuth();
+  const { user, role: currentUserRole, isSuperAdmin, isAdmin } = useAuth();
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [addingEmployee, setAddingEmployee] = useState(false);
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    role: 'sales_executive' as 'super_admin' | 'admin' | 'sales_executive',
+  });
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -138,6 +146,66 @@ export default function Employees() {
     }
   };
 
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.full_name.trim() || !formData.email.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Name and email are required',
+      });
+      return;
+    }
+
+    setAddingEmployee(true);
+
+    // Create profile for the new employee
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        full_name: formData.full_name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || null,
+        user_id: crypto.randomUUID(), // Temporary user_id until they sign up
+      })
+      .select()
+      .single();
+
+    if (profileError) {
+      console.error('Error creating employee profile:', profileError);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to add employee. Email may already exist.',
+      });
+      setAddingEmployee(false);
+      return;
+    }
+
+    // Create user role
+    const { error: roleError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: profileData.user_id,
+        role: formData.role,
+      });
+
+    if (roleError) {
+      console.error('Error creating employee role:', roleError);
+    }
+
+    toast({
+      title: 'Employee Added',
+      description: `${formData.full_name} has been added as ${formData.role.replace('_', ' ')}.`,
+    });
+
+    setFormData({ full_name: '', email: '', phone: '', role: 'sales_executive' });
+    setIsAddDialogOpen(false);
+    setAddingEmployee(false);
+    fetchEmployees();
+  };
+
   const filteredEmployees = employees.filter((employee) =>
     employee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -156,6 +224,79 @@ export default function Employees() {
             <h1 className="text-2xl font-bold text-foreground">Employees</h1>
             <p className="text-muted-foreground">Manage your team members</p>
           </div>
+          {isAdmin && (
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Employee
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Employee</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAddEmployee} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Full Name *</Label>
+                    <Input
+                      id="full_name"
+                      value={formData.full_name}
+                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                      placeholder="John Doe"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="john@example.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+1 234 567 890"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={formData.role}
+                      onValueChange={(value) => setFormData({ ...formData, role: value as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isSuperAdmin && (
+                          <SelectItem value="super_admin">Super Admin</SelectItem>
+                        )}
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="sales_executive">Sales Executive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={addingEmployee}>
+                      {addingEmployee ? 'Adding...' : 'Add Employee'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {/* Search */}
