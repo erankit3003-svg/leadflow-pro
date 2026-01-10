@@ -30,7 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Search, Shield, UserCog, Mail, Phone, Crown } from 'lucide-react';
+import { Plus, Users, Search, Shield, UserCog, Mail, Phone, Crown, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Employee {
@@ -51,12 +51,20 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [addingEmployee, setAddingEmployee] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
     phone: '',
     role: 'sales_executive' as 'super_admin' | 'admin' | 'sales_executive',
+  });
+  const [editFormData, setEditFormData] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
   });
 
   const fetchEmployees = async () => {
@@ -204,6 +212,61 @@ export default function Employees() {
     setIsAddDialogOpen(false);
     setAddingEmployee(false);
     fetchEmployees();
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEditFormData({
+      full_name: employee.full_name,
+      email: employee.email,
+      phone: employee.phone || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingEmployee) return;
+    
+    if (!editFormData.full_name.trim() || !editFormData.email.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Validation Error',
+        description: 'Name and email are required',
+      });
+      return;
+    }
+
+    setSavingEdit(true);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: editFormData.full_name.trim(),
+        email: editFormData.email.trim(),
+        phone: editFormData.phone.trim() || null,
+      })
+      .eq('id', editingEmployee.id);
+
+    if (error) {
+      console.error('Error updating employee:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update employee',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: 'Employee updated successfully',
+      });
+      setIsEditDialogOpen(false);
+      setEditingEmployee(null);
+      fetchEmployees();
+    }
+
+    setSavingEdit(false);
   };
 
   const filteredEmployees = employees.filter((employee) =>
@@ -447,24 +510,33 @@ export default function Employees() {
                       </TableCell>
                       {isAdmin && (
                         <TableCell>
-                          <Select
-                            value={employee.role}
-                            onValueChange={(value) =>
-                              handleRoleChange(employee.user_id, value as 'super_admin' | 'admin' | 'sales_executive')
-                            }
-                            disabled={employee.role === 'super_admin' && !isSuperAdmin}
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {isSuperAdmin && (
-                                <SelectItem value="super_admin">Super Admin</SelectItem>
-                              )}
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="sales_executive">Sales Executive</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditEmployee(employee)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Select
+                              value={employee.role}
+                              onValueChange={(value) =>
+                                handleRoleChange(employee.user_id, value as 'super_admin' | 'admin' | 'sales_executive')
+                              }
+                              disabled={employee.role === 'super_admin' && !isSuperAdmin}
+                            >
+                              <SelectTrigger className="w-[150px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {isSuperAdmin && (
+                                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                                )}
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="sales_executive">Sales Executive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -474,6 +546,55 @@ export default function Employees() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Edit Employee Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Employee</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_full_name">Full Name *</Label>
+                <Input
+                  id="edit_full_name"
+                  value={editFormData.full_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_email">Email *</Label>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  placeholder="john@example.com"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_phone">Phone</Label>
+                <Input
+                  id="edit_phone"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  placeholder="+1 234 567 890"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={savingEdit}>
+                  {savingEdit ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
