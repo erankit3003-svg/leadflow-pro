@@ -30,8 +30,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Search, Shield, UserCog, Mail, Phone, Crown, Pencil } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Users, Search, Shield, UserCog, Mail, Phone, Crown, Pencil, History, Clock } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 
 interface Employee {
   id: string;
@@ -42,6 +42,19 @@ interface Employee {
   avatar_url: string | null;
   created_at: string;
   role: 'super_admin' | 'admin' | 'sales_executive';
+}
+
+interface ActivityLog {
+  id: string;
+  employee_user_id: string;
+  action_type: string;
+  action_details: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  performed_by: string | null;
+  created_at: string;
+  performer_name?: string;
+  employee_name?: string;
 }
 
 export default function Employees() {
@@ -66,6 +79,8 @@ export default function Employees() {
     email: '',
     phone: '',
   });
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [showActivityLog, setShowActivityLog] = useState(false);
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -109,11 +124,71 @@ export default function Employees() {
     setLoading(false);
   };
 
+  const fetchActivityLogs = async () => {
+    const { data, error } = await supabase
+      .from('employee_activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error fetching activity logs:', error);
+      return;
+    }
+
+    // Get performer and employee names
+    const logsWithNames = await Promise.all(
+      (data || []).map(async (log: any) => {
+        let performerName = 'Unknown';
+        let employeeName = 'Unknown';
+
+        if (log.performed_by) {
+          const performer = employees.find(e => e.user_id === log.performed_by);
+          performerName = performer?.full_name || 'Unknown';
+        }
+
+        const employee = employees.find(e => e.user_id === log.employee_user_id);
+        employeeName = employee?.full_name || 'Unknown';
+
+        return {
+          ...log,
+          performer_name: performerName,
+          employee_name: employeeName,
+        };
+      })
+    );
+
+    setActivityLogs(logsWithNames);
+  };
+
   useEffect(() => {
     fetchEmployees();
   }, []);
 
-  const handleRoleChange = async (userId: string, newRole: 'super_admin' | 'admin' | 'sales_executive') => {
+  useEffect(() => {
+    if (employees.length > 0 && isAdmin) {
+      fetchActivityLogs();
+    }
+  }, [employees, isAdmin]);
+
+  const logActivity = async (
+    employeeUserId: string,
+    actionType: string,
+    actionDetails: string,
+    oldValue?: string,
+    newValue?: string
+  ) => {
+    await supabase.from('employee_activity_logs').insert({
+      employee_user_id: employeeUserId,
+      action_type: actionType,
+      action_details: actionDetails,
+      old_value: oldValue || null,
+      new_value: newValue || null,
+      performed_by: user?.id,
+    });
+  };
+
+  const handleRoleChange = async (userId: string, newRole: 'super_admin' | 'admin' | 'sales_executive', currentRole: string) => {
     // Only super_admin can assign super_admin role
     if (newRole === 'super_admin' && !isSuperAdmin) {
       toast({
@@ -146,6 +221,16 @@ export default function Employees() {
         description: 'Failed to update role',
       });
     } else {
+      // Log the role change
+      const employee = employees.find(e => e.user_id === userId);
+      await logActivity(
+        userId,
+        'role_change',
+        `Role changed for ${employee?.full_name || 'employee'}`,
+        currentRole,
+        newRole
+      );
+      
       toast({
         title: 'Success',
         description: 'Role updated successfully',
@@ -203,6 +288,13 @@ export default function Employees() {
       console.error('Error creating employee role:', roleError);
     }
 
+    // Log employee creation
+    await logActivity(
+      profileData.user_id,
+      'employee_added',
+      `New employee ${formData.full_name} added with role ${formData.role.replace('_', ' ')}`
+    );
+
     toast({
       title: 'Employee Added',
       description: `${formData.full_name} has been added as ${formData.role.replace('_', ' ')}.`,
@@ -240,6 +332,18 @@ export default function Employees() {
 
     setSavingEdit(true);
 
+    // Track changes for activity log
+    const changes: string[] = [];
+    if (editFormData.full_name !== editingEmployee.full_name) {
+      changes.push(`name: ${editingEmployee.full_name} → ${editFormData.full_name}`);
+    }
+    if (editFormData.email !== editingEmployee.email) {
+      changes.push(`email: ${editingEmployee.email} → ${editFormData.email}`);
+    }
+    if (editFormData.phone !== (editingEmployee.phone || '')) {
+      changes.push(`phone: ${editingEmployee.phone || 'none'} → ${editFormData.phone || 'none'}`);
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({
@@ -257,6 +361,15 @@ export default function Employees() {
         description: 'Failed to update employee',
       });
     } else {
+      // Log the edit
+      if (changes.length > 0) {
+        await logActivity(
+          editingEmployee.user_id,
+          'profile_edit',
+          `Profile updated: ${changes.join(', ')}`
+        );
+      }
+
       toast({
         title: 'Success',
         description: 'Employee updated successfully',
@@ -288,13 +401,18 @@ export default function Employees() {
             <p className="text-muted-foreground">Manage your team members</p>
           </div>
           {isAdmin && (
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Employee
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowActivityLog(!showActivityLog)}>
+                <History className="h-4 w-4 mr-2" />
+                {showActivityLog ? 'Hide Activity' : 'Activity Log'}
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Employee
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Employee</DialogTitle>
@@ -359,6 +477,7 @@ export default function Employees() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           )}
         </div>
 
@@ -521,7 +640,7 @@ export default function Employees() {
                             <Select
                               value={employee.role}
                               onValueChange={(value) =>
-                                handleRoleChange(employee.user_id, value as 'super_admin' | 'admin' | 'sales_executive')
+                                handleRoleChange(employee.user_id, value as 'super_admin' | 'admin' | 'sales_executive', employee.role)
                               }
                               disabled={employee.role === 'super_admin' && !isSuperAdmin}
                             >
@@ -546,6 +665,67 @@ export default function Employees() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Activity Log Section */}
+        {isAdmin && showActivityLog && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Activity Log
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activityLogs.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">No activity logs yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {activityLogs.map((log) => (
+                    <div key={log.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+                      <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                        log.action_type === 'role_change' ? 'bg-primary/20' :
+                        log.action_type === 'profile_edit' ? 'bg-blue-500/20' :
+                        'bg-green-500/20'
+                      }`}>
+                        {log.action_type === 'role_change' ? (
+                          <Shield className="h-4 w-4 text-primary" />
+                        ) : log.action_type === 'profile_edit' ? (
+                          <Pencil className="h-4 w-4 text-blue-500" />
+                        ) : (
+                          <Plus className="h-4 w-4 text-green-500" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">
+                          {log.action_type === 'role_change' ? 'Role Changed' :
+                           log.action_type === 'profile_edit' ? 'Profile Edited' :
+                           'Employee Added'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{log.action_details}</p>
+                        {log.old_value && log.new_value && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <span className="line-through">{log.old_value}</span> → <span className="font-medium">{log.new_value}</span>
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                          </span>
+                          {log.performer_name && (
+                            <span className="text-xs text-muted-foreground">
+                              by {log.performer_name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Edit Employee Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

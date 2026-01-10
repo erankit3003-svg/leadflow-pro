@@ -53,6 +53,39 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_activity_logs: {
+        Row: {
+          action_details: string | null
+          action_type: string
+          created_at: string
+          employee_user_id: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          performed_by: string | null
+        }
+        Insert: {
+          action_details?: string | null
+          action_type: string
+          created_at?: string
+          employee_user_id: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          performed_by?: string | null
+        }
+        Update: {
+          action_details?: string | null
+          action_type?: string
+          created_at?: string
+          employee_user_id?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          performed_by?: string | null
+        }
+        Relationships: []
+      }
       lead_notes: {
         Row: {
           content: string
