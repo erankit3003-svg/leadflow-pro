@@ -406,14 +406,17 @@ export default function Employees() {
                 <History className="h-4 w-4 mr-2" />
                 {showActivityLog ? 'Hide Activity' : 'Activity Log'}
               </Button>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Employee
-                  </Button>
-                </DialogTrigger>
-              <DialogContent>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Employee
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Add Employee Dialog */}
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Employee</DialogTitle>
                 </DialogHeader>
@@ -475,11 +478,8 @@ export default function Employees() {
                     </Button>
                   </div>
                 </form>
-              </DialogContent>
-            </Dialog>
-            </div>
-          )}
-        </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Search */}
         <div className="relative max-w-md">
