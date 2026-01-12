@@ -3,7 +3,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Header } from '@/components/layout/Header';
 import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { FileText, DollarSign, Clock, CheckCircle, AlertTriangle, MoreHorizontal, Download, Eye } from 'lucide-react';
+import { FileText, DollarSign, Clock, CheckCircle, AlertTriangle, MoreHorizontal, Download, Eye, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,6 +11,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 interface Invoice {
   id: string;
@@ -73,12 +80,66 @@ const statusConfig = {
 };
 
 export default function Invoices() {
-  const [invoices] = useState<Invoice[]>(mockInvoices);
+  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const totalAmount = invoices.reduce((sum, inv) => sum + inv.amount, 0);
   const paidAmount = invoices.filter(i => i.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0);
   const pendingAmount = invoices.filter(i => i.status === 'pending').reduce((sum, inv) => sum + inv.amount, 0);
   const overdueAmount = invoices.filter(i => i.status === 'overdue').reduce((sum, inv) => sum + inv.amount, 0);
+
+  const handleViewInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleDownloadPDF = (invoice: Invoice) => {
+    // Generate invoice content for download
+    const invoiceContent = `
+INVOICE
+========================================
+Invoice Number: ${invoice.invoiceNumber}
+Date: ${format(invoice.createdAt, 'MMMM dd, yyyy')}
+Due Date: ${format(invoice.dueDate, 'MMMM dd, yyyy')}
+
+BILL TO:
+${invoice.clientName}
+${invoice.company}
+
+----------------------------------------
+AMOUNT DUE: ₹${invoice.amount.toLocaleString()}
+----------------------------------------
+
+Status: ${statusConfig[invoice.status].label}
+
+Thank you for your business!
+    `.trim();
+
+    // Create and download the file
+    const blob = new Blob([invoiceContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${invoice.invoiceNumber}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Downloaded ${invoice.invoiceNumber}`);
+  };
+
+  const handleMarkAsPaid = (invoiceId: string) => {
+    setInvoices(prev => prev.map(inv => 
+      inv.id === invoiceId ? { ...inv, status: 'paid' as const } : inv
+    ));
+    toast.success('Invoice marked as paid');
+  };
+
+  const handleSendReminder = (invoice: Invoice) => {
+    toast.success(`Reminder sent to ${invoice.clientName}`);
+  };
 
   return (
     <MainLayout>
@@ -195,16 +256,20 @@ export default function Invoices() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewInvoice(invoice)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View Invoice
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownloadPDF(invoice)}>
                             <Download className="h-4 w-4 mr-2" />
                             Download PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Send Reminder</DropdownMenuItem>
-                          <DropdownMenuItem>Mark as Paid</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSendReminder(invoice)}>
+                            Send Reminder
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleMarkAsPaid(invoice.id)}>
+                            Mark as Paid
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -215,6 +280,55 @@ export default function Invoices() {
           </table>
         </div>
       </div>
+
+      {/* View Invoice Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Invoice Details</DialogTitle>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Invoice Number</span>
+                  <span className="font-medium">{selectedInvoice.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Client</span>
+                  <span className="font-medium">{selectedInvoice.clientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Company</span>
+                  <span className="font-medium">{selectedInvoice.company}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-semibold text-primary">₹{selectedInvoice.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className={cn('status-badge', statusConfig[selectedInvoice.status].bgColor, statusConfig[selectedInvoice.status].color)}>
+                    {statusConfig[selectedInvoice.status].label}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Created</span>
+                  <span>{format(selectedInvoice.createdAt, 'MMM dd, yyyy')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Due Date</span>
+                  <span>{format(selectedInvoice.dueDate, 'MMM dd, yyyy')}</span>
+                </div>
+              </div>
+              <Button onClick={() => handleDownloadPDF(selectedInvoice)} className="w-full">
+                <Download className="h-4 w-4 mr-2" />
+                Download Invoice
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
