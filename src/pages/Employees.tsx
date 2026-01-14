@@ -251,59 +251,95 @@ export default function Employees() {
       return;
     }
 
-    setAddingEmployee(true);
-
-    // Create profile for the new employee
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        full_name: formData.full_name.trim(),
-        email: formData.email.trim(),
-        phone: formData.phone.trim() || null,
-        user_id: crypto.randomUUID(), // Temporary user_id until they sign up
-      })
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error('Error creating employee profile:', profileError);
+    // Check if current user is admin
+    if (!isAdmin) {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to add employee. Email may already exist.',
+        title: 'Access Denied',
+        description: 'Only admins can add employees',
       });
-      setAddingEmployee(false);
       return;
     }
 
-    // Create user role
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .insert({
-        user_id: profileData.user_id,
-        role: formData.role,
+    setAddingEmployee(true);
+
+    try {
+      // Use Supabase Auth Admin API to invite user (this creates a real auth user)
+      // For now, we'll sign up the user with a temporary password they'll need to reset
+      const tempPassword = crypto.randomUUID();
+      
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email.trim(),
+        password: tempPassword,
+        options: {
+          data: {
+            full_name: formData.full_name.trim(),
+          },
+        },
       });
 
-    if (roleError) {
-      console.error('Error creating employee role:', roleError);
+      if (authError) {
+        console.error('Error creating employee auth:', authError);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: authError.message || 'Failed to add employee. Email may already exist.',
+        });
+        setAddingEmployee(false);
+        return;
+      }
+
+      if (!authData.user) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to create user account',
+        });
+        setAddingEmployee(false);
+        return;
+      }
+
+      // Update the profile with phone number if provided
+      if (formData.phone.trim()) {
+        await supabase
+          .from('profiles')
+          .update({ phone: formData.phone.trim() })
+          .eq('user_id', authData.user.id);
+      }
+
+      // Update user role if not default
+      if (formData.role !== 'sales_executive') {
+        await supabase
+          .from('user_roles')
+          .update({ role: formData.role })
+          .eq('user_id', authData.user.id);
+      }
+
+      // Log employee creation
+      await logActivity(
+        authData.user.id,
+        'employee_added',
+        `New employee ${formData.full_name} added with role ${formData.role.replace('_', ' ')}`
+      );
+
+      toast({
+        title: 'Employee Added',
+        description: `${formData.full_name} has been added. They will receive an email to set their password.`,
+      });
+
+      setFormData({ full_name: '', email: '', phone: '', role: 'sales_executive' });
+      setIsAddDialogOpen(false);
+      fetchEmployees();
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'An unexpected error occurred',
+      });
+    } finally {
+      setAddingEmployee(false);
     }
-
-    // Log employee creation
-    await logActivity(
-      profileData.user_id,
-      'employee_added',
-      `New employee ${formData.full_name} added with role ${formData.role.replace('_', ' ')}`
-    );
-
-    toast({
-      title: 'Employee Added',
-      description: `${formData.full_name} has been added as ${formData.role.replace('_', ' ')}.`,
-    });
-
-    setFormData({ full_name: '', email: '', phone: '', role: 'sales_executive' });
-    setIsAddDialogOpen(false);
-    setAddingEmployee(false);
-    fetchEmployees();
   };
 
   const handleEditEmployee = (employee: Employee) => {
