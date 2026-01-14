@@ -39,6 +39,13 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
   const initials = lead.name.split(' ').map(n => n[0]).join('').toUpperCase();
   const hasNotes = lead.notes && lead.notes.length > 0;
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Only trigger view details if it's a simple click (not a drag)
+    if (!isDragging) {
+      onViewDetails?.(lead);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -46,11 +53,11 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
       {...attributes}
       {...listeners}
       className={cn(
-        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-grab active:cursor-grabbing',
+        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-grab active:cursor-grabbing touch-none',
         'hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5',
         isDragging && 'opacity-60 shadow-2xl ring-2 ring-primary/40 rotate-2 scale-105'
       )}
-      onClick={() => onViewDetails?.(lead)}
+      onClick={handleCardClick}
     >
       {/* Drag Handle & Header */}
       <div className="flex items-start gap-3">
