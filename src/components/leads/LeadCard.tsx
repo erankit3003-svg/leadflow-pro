@@ -43,8 +43,10 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className={cn(
-        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-pointer',
+        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-grab active:cursor-grabbing',
         'hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5',
         isDragging && 'opacity-60 shadow-2xl ring-2 ring-primary/40 rotate-2 scale-105'
       )}
@@ -52,11 +54,7 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
     >
       {/* Drag Handle & Header */}
       <div className="flex items-start gap-3">
-        <div
-          {...attributes}
-          {...listeners}
-          className="mt-1 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
-        >
+        <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
         

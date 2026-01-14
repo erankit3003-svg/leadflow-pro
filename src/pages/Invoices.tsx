@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
 
 interface Invoice {
   id: string;
@@ -95,39 +96,91 @@ export default function Invoices() {
   };
 
   const handleDownloadPDF = (invoice: Invoice) => {
-    // Generate invoice content for download
-    const invoiceContent = `
-INVOICE
-========================================
-Invoice Number: ${invoice.invoiceNumber}
-Date: ${format(invoice.createdAt, 'MMMM dd, yyyy')}
-Due Date: ${format(invoice.dueDate, 'MMMM dd, yyyy')}
-
-BILL TO:
-${invoice.clientName}
-${invoice.company}
-
-----------------------------------------
-AMOUNT DUE: ₹${invoice.amount.toLocaleString()}
-----------------------------------------
-
-Status: ${statusConfig[invoice.status].label}
-
-Thank you for your business!
-    `.trim();
-
-    // Create and download the file
-    const blob = new Blob([invoiceContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${invoice.invoiceNumber}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
     
-    toast.success(`Downloaded ${invoice.invoiceNumber}`);
+    // Header
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INVOICE', 20, 28);
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(invoice.invoiceNumber, pageWidth - 20, 28, { align: 'right' });
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    
+    // Invoice details section
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Invoice Date:', 20, 55);
+    doc.text('Due Date:', 20, 65);
+    doc.text('Status:', 20, 75);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text(format(invoice.createdAt, 'MMMM dd, yyyy'), 70, 55);
+    doc.text(format(invoice.dueDate, 'MMMM dd, yyyy'), 70, 65);
+    
+    // Status with color
+    const statusColors: Record<string, [number, number, number]> = {
+      paid: [34, 197, 94],
+      pending: [234, 179, 8],
+      overdue: [239, 68, 68],
+    };
+    const statusColor = statusColors[invoice.status] || [0, 0, 0];
+    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+    doc.text(statusConfig[invoice.status].label.toUpperCase(), 70, 75);
+    
+    // Bill To section
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal');
+    doc.text('BILL TO:', 20, 95);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(invoice.clientName, 20, 105);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(invoice.company, 20, 113);
+    
+    // Line separator
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 130, pageWidth - 20, 130);
+    
+    // Amount section
+    doc.setFillColor(249, 250, 251);
+    doc.rect(20, 140, pageWidth - 40, 30, 'F');
+    
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(10);
+    doc.text('Amount Due', 30, 155);
+    
+    doc.setTextColor(59, 130, 246);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Rs. ${invoice.amount.toLocaleString()}`, pageWidth - 30, 158, { align: 'right' });
+    
+    // Footer
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thank you for your business!', pageWidth / 2, 200, { align: 'center' });
+    
+    // Line at bottom
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 280, pageWidth, 17, 'F');
+    
+    // Save the PDF
+    doc.save(`${invoice.invoiceNumber}.pdf`);
+    
+    toast.success(`Downloaded ${invoice.invoiceNumber}.pdf`);
   };
 
   const handleMarkAsPaid = (invoiceId: string) => {
