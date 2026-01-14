@@ -400,18 +400,18 @@ export default function Employees() {
             <h1 className="text-2xl font-bold text-foreground">Employees</h1>
             <p className="text-muted-foreground">Manage your team members</p>
           </div>
-          {isAdmin && (
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            {isAdmin && (
               <Button variant="outline" onClick={() => setShowActivityLog(!showActivityLog)}>
                 <History className="h-4 w-4 mr-2" />
                 {showActivityLog ? 'Hide Activity' : 'Activity Log'}
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Employee
-              </Button>
-            </div>
-          )}
+            )}
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Employee
+            </Button>
+          </div>
         </div>
 
         {/* Add Employee Dialog */}
