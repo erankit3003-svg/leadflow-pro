@@ -1,4 +1,4 @@
-import { useSortable } from '@dnd-kit/sortable';
+import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Lead, STATUS_CONFIG } from '@/types/lead';
 import { Phone, Mail, Building2, Calendar, MoreVertical, GripVertical, MessageSquare, IndianRupee } from 'lucide-react';
@@ -27,13 +27,11 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id: lead.id });
+  } = useDraggable({ id: lead.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? CSS.Translate.toString(transform) : undefined,
   };
 
   const initials = lead.name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -55,7 +53,7 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
       className={cn(
         'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-grab active:cursor-grabbing touch-none',
         'hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5',
-        isDragging && 'opacity-60 shadow-2xl ring-2 ring-primary/40 rotate-2 scale-105'
+        isDragging && 'opacity-60 shadow-2xl ring-2 ring-primary/40 rotate-2 scale-105 z-50'
       )}
       onClick={handleCardClick}
     >

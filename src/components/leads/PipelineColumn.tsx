@@ -1,5 +1,4 @@
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Lead, LeadStatus, STATUS_CONFIG } from '@/types/lead';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
@@ -98,27 +97,22 @@ export function PipelineColumn({ status, leads, onEditLead, onDeleteLead, onAddL
           isOver && 'bg-primary/5 ring-2 ring-primary/30 ring-inset'
         )}
       >
-        <SortableContext
-          items={leads.map(l => l.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="space-y-3">
-            {leads.map((lead, index) => (
-              <div 
-                key={lead.id} 
-                className="animate-slide-up"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <LeadCard
-                  lead={lead}
-                  onEdit={onEditLead}
-                  onDelete={onDeleteLead}
-                  onViewDetails={onViewDetails}
-                />
-              </div>
-            ))}
-          </div>
-        </SortableContext>
+        <div className="space-y-3">
+          {leads.map((lead, index) => (
+            <div 
+              key={lead.id} 
+              className="animate-slide-up"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <LeadCard
+                lead={lead}
+                onEdit={onEditLead}
+                onDelete={onDeleteLead}
+                onViewDetails={onViewDetails}
+              />
+            </div>
+          ))}
+        </div>
         
         {leads.length === 0 && (
           <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
