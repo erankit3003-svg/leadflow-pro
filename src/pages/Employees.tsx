@@ -29,8 +29,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/contexts/TenantContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Search, Shield, UserCog, Mail, Phone, Crown, Pencil, History, Clock } from 'lucide-react';
+import { Plus, Users, Search, Shield, UserCog, Mail, Phone, Crown, Pencil, History, Clock, Building2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
 interface Employee {
@@ -59,6 +60,7 @@ interface ActivityLog {
 
 export default function Employees() {
   const { user, role: currentUserRole, isSuperAdmin, isAdmin } = useAuth();
+  const { activeTenant, loading: tenantLoading } = useTenant();
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,45 +85,100 @@ export default function Employees() {
   const [showActivityLog, setShowActivityLog] = useState(false);
 
   const fetchEmployees = async () => {
-    setLoading(true);
-    
-    // Fetch profiles with their roles
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to load employees',
-      });
+    if (!activeTenant && !isSuperAdmin) {
+      setEmployees([]);
       setLoading(false);
       return;
     }
 
-    // Fetch all roles
-    const { data: roles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('*');
+    setLoading(true);
+    
+    try {
+      // First, get the user IDs of members in the current tenant
+      let memberUserIds: string[] = [];
+      
+      if (isSuperAdmin && !activeTenant) {
+        // Super admin without active tenant sees all employees
+        const { data: allMemberships } = await supabase
+          .from('tenant_memberships')
+          .select('user_id')
+          .eq('is_active', true);
+        memberUserIds = [...new Set((allMemberships || []).map(m => m.user_id))];
+      } else if (activeTenant) {
+        // Get members of the active tenant
+        const { data: memberships, error: memberError } = await supabase
+          .from('tenant_memberships')
+          .select('user_id')
+          .eq('company_id', activeTenant.id)
+          .eq('is_active', true);
 
-    if (rolesError) {
-      console.error('Error fetching roles:', rolesError);
+        if (memberError) {
+          console.error('Error fetching tenant members:', memberError);
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to load employees',
+          });
+          setLoading(false);
+          return;
+        }
+        memberUserIds = (memberships || []).map(m => m.user_id);
+      }
+
+      if (memberUserIds.length === 0) {
+        setEmployees([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('user_id', memberUserIds)
+        .order('created_at', { ascending: false });
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to load employees',
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Fetch roles for these users
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .in('user_id', memberUserIds);
+
+      if (rolesError) {
+        console.error('Error fetching roles:', rolesError);
+      }
+
+      // Combine profiles with roles
+      const employeesWithRoles = (profiles || []).map((profile: any) => {
+        const userRole = (roles || []).find((r: any) => r.user_id === profile.user_id);
+        return {
+          ...profile,
+          role: userRole?.role || 'sales_executive',
+        };
+      });
+
+      setEmployees(employeesWithRoles as Employee[]);
+    } catch (error) {
+      console.error('Error in fetchEmployees:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'An unexpected error occurred',
+      });
+    } finally {
+      setLoading(false);
     }
-
-    // Combine profiles with roles
-    const employeesWithRoles = (profiles || []).map((profile: any) => {
-      const userRole = (roles || []).find((r: any) => r.user_id === profile.user_id);
-      return {
-        ...profile,
-        role: userRole?.role || 'sales_executive',
-      };
-    });
-
-    setEmployees(employeesWithRoles as Employee[]);
-    setLoading(false);
   };
 
   const fetchActivityLogs = async () => {
@@ -162,8 +219,10 @@ export default function Employees() {
   };
 
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    if (!tenantLoading) {
+      fetchEmployees();
+    }
+  }, [activeTenant, tenantLoading, isSuperAdmin]);
 
   useEffect(() => {
     if (employees.length > 0 && isAdmin) {
@@ -315,11 +374,28 @@ export default function Employees() {
           .eq('user_id', authData.user.id);
       }
 
+      // Add employee to the current tenant
+      if (activeTenant) {
+        const { error: membershipError } = await supabase
+          .from('tenant_memberships')
+          .insert({
+            user_id: authData.user.id,
+            company_id: activeTenant.id,
+            role: formData.role === 'super_admin' ? 'admin' : formData.role,
+            is_active: true,
+          });
+
+        if (membershipError) {
+          console.error('Error adding tenant membership:', membershipError);
+          // Don't fail the whole operation, just log the error
+        }
+      }
+
       // Log employee creation
       await logActivity(
         authData.user.id,
         'employee_added',
-        `New employee ${formData.full_name} added with role ${formData.role.replace('_', ' ')}`
+        `New employee ${formData.full_name} added with role ${formData.role.replace('_', ' ')}${activeTenant ? ` to ${activeTenant.name}` : ''}`
       );
 
       toast({
@@ -434,7 +510,18 @@ export default function Employees() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Employees</h1>
-            <p className="text-muted-foreground">Manage your team members</p>
+            <p className="text-muted-foreground">
+              {activeTenant ? (
+                <span className="flex items-center gap-1">
+                  <Building2 className="h-4 w-4" />
+                  {activeTenant.name} - Manage team members
+                </span>
+              ) : isSuperAdmin ? (
+                'All employees across tenants'
+              ) : (
+                'Select a company to view employees'
+              )}
+            </p>
           </div>
           <div className="flex gap-2">
             {isAdmin && (
@@ -443,12 +530,29 @@ export default function Employees() {
                 {showActivityLog ? 'Hide Activity' : 'Activity Log'}
               </Button>
             )}
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Employee
-            </Button>
+            {(isAdmin || isSuperAdmin) && activeTenant && (
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Employee
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* No Tenant Selected Warning */}
+        {!activeTenant && !isSuperAdmin && (
+          <Card className="bg-yellow-500/10 border-yellow-500/30">
+            <CardContent className="py-6 flex items-center gap-4">
+              <Building2 className="h-8 w-8 text-yellow-500" />
+              <div>
+                <h3 className="font-semibold text-yellow-700 dark:text-yellow-400">No Company Selected</h3>
+                <p className="text-sm text-muted-foreground">
+                  Please select a company from the tenant switcher to view employees.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Add Employee Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -577,14 +681,20 @@ export default function Employees() {
         </div>
 
         {/* Info Card */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="py-4">
-            <p className="text-sm text-muted-foreground">
-              <strong>Note:</strong> New employees are added automatically when they sign up. 
-              By default, new users are assigned the "Sales Executive" role. Admins can change roles below.
-            </p>
-          </CardContent>
-        </Card>
+        {(activeTenant || isSuperAdmin) && (
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="py-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Note:</strong> {activeTenant ? (
+                  `Showing employees for ${activeTenant.name}. `
+                ) : (
+                  'Showing all employees across tenants. '
+                )}
+                New employees added here will be assigned to the current company. Admins can change roles below.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Employees Table */}
         <Card>
