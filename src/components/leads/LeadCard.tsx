@@ -37,8 +37,7 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
   const initials = lead.name.split(' ').map(n => n[0]).join('').toUpperCase();
   const hasNotes = lead.notes && lead.notes.length > 0;
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Only trigger view details if it's a simple click (not a drag)
+  const handleCardClick = () => {
     if (!isDragging) {
       onViewDetails?.(lead);
     }
@@ -48,10 +47,8 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
       className={cn(
-        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-grab active:cursor-grabbing touch-none',
+        'group bg-card rounded-xl p-4 shadow-sm border border-border/50 transition-all duration-200 cursor-pointer',
         'hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5',
         isDragging && 'opacity-60 shadow-2xl ring-2 ring-primary/40 rotate-2 scale-105 z-50'
       )}
@@ -59,9 +56,16 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
     >
       {/* Drag Handle & Header */}
       <div className="flex items-start gap-3">
-        <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="mt-1 p-1 rounded hover:bg-muted cursor-grab active:cursor-grabbing touch-none transition-colors"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Drag to move lead"
+        >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </div>
+        </button>
         
         {/* Avatar */}
         <div className="relative">
