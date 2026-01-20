@@ -782,8 +782,8 @@ export default function Employees() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {employee.tenant_names.length > 0 ? (
-                            employee.tenant_names.map((name, idx) => (
+                          {(employee.tenant_names || []).length > 0 ? (
+                            (employee.tenant_names || []).map((name, idx) => (
                               <Badge key={idx} variant="outline" className="text-xs">
                                 <Building2 className="h-3 w-3 mr-1" />
                                 {name}
