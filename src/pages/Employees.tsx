@@ -43,6 +43,7 @@ interface Employee {
   avatar_url: string | null;
   created_at: string;
   role: 'super_admin' | 'admin' | 'sales_executive';
+  tenant_names: string[];
 }
 
 interface ActivityLog {
@@ -159,12 +160,34 @@ export default function Employees() {
         console.error('Error fetching roles:', rolesError);
       }
 
-      // Combine profiles with roles
+      // Fetch tenant memberships with company names for these users
+      const { data: membershipsWithCompanies } = await supabase
+        .from('tenant_memberships')
+        .select('user_id, companies(name)')
+        .in('user_id', memberUserIds)
+        .eq('is_active', true);
+
+      // Group company names by user_id
+      const userTenantNames: Record<string, string[]> = {};
+      (membershipsWithCompanies || []).forEach((m: any) => {
+        const companyName = m.companies?.name;
+        if (companyName) {
+          if (!userTenantNames[m.user_id]) {
+            userTenantNames[m.user_id] = [];
+          }
+          if (!userTenantNames[m.user_id].includes(companyName)) {
+            userTenantNames[m.user_id].push(companyName);
+          }
+        }
+      });
+
+      // Combine profiles with roles and tenant names
       const employeesWithRoles = (profiles || []).map((profile: any) => {
         const userRole = (roles || []).find((r: any) => r.user_id === profile.user_id);
         return {
           ...profile,
           role: userRole?.role || 'sales_executive',
+          tenant_names: userTenantNames[profile.user_id] || [],
         };
       });
 
@@ -704,6 +727,7 @@ export default function Employees() {
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Contact</TableHead>
+                  <TableHead>Company</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Joined</TableHead>
                   {isAdmin && <TableHead>Actions</TableHead>}
@@ -712,13 +736,13 @@ export default function Employees() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       Loading employees...
                     </TableCell>
                   </TableRow>
                 ) : filteredEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No employees found.
                     </TableCell>
                   </TableRow>
@@ -753,6 +777,20 @@ export default function Employees() {
                               <Phone className="h-3 w-3 text-muted-foreground" />
                               {employee.phone}
                             </p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {employee.tenant_names.length > 0 ? (
+                            employee.tenant_names.map((name, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                <Building2 className="h-3 w-3 mr-1" />
+                                {name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
                           )}
                         </div>
                       </TableCell>
