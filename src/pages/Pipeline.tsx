@@ -193,6 +193,7 @@ export default function Pipeline() {
           value: leadData.value || 0,
           status: defaultStatus,
           assignedTo: leadData.assignedTo || null,
+          assignedToName: null,
           followUpDate: leadData.followUpDate || null,
           createdBy: null,
           wonReason: null,

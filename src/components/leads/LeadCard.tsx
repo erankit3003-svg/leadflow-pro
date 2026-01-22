@@ -1,7 +1,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Lead, STATUS_CONFIG } from '@/types/lead';
-import { Phone, Mail, Building2, Calendar, MoreVertical, GripVertical, MessageSquare, IndianRupee } from 'lucide-react';
+import { Phone, Mail, Building2, Calendar, MoreVertical, GripVertical, MessageSquare, IndianRupee, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
@@ -155,12 +155,20 @@ export function LeadCard({ lead, onEdit, onDelete, onViewNotes, onViewDetails }:
           <IndianRupee className="h-3.5 w-3.5" />
           <span>{lead.value.toLocaleString()}</span>
         </div>
-        {lead.followUpDate && (
-          <Badge variant="outline" className="text-xs gap-1 font-normal">
-            <Calendar className="h-3 w-3" />
-            {formatDistanceToNow(lead.followUpDate, { addSuffix: true })}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {lead.assignedToName && (
+            <Badge variant="secondary" className="text-xs gap-1 font-normal">
+              <User className="h-3 w-3" />
+              {lead.assignedToName}
+            </Badge>
+          )}
+          {lead.followUpDate && (
+            <Badge variant="outline" className="text-xs gap-1 font-normal">
+              <Calendar className="h-3 w-3" />
+              {formatDistanceToNow(lead.followUpDate, { addSuffix: true })}
+            </Badge>
+          )}
+        </div>
       </div>
     </div>
   );
