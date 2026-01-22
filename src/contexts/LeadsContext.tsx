@@ -23,6 +23,7 @@ interface Lead {
   value: number;
   status: 'new' | 'contacted' | 'follow_up' | 'interested' | 'proposal_sent' | 'won' | 'lost';
   assignedTo: string | null;
+  assignedToName: string | null;
   followUpDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -97,6 +98,24 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
         }, {} as Record<string, LeadNote[]>);
       }
 
+      // Fetch profiles for assigned users
+      const assignedUserIds = [...new Set((leadsData || []).map(l => l.assigned_to).filter(Boolean))];
+      let profilesMap: Record<string, string> = {};
+
+      if (assignedUserIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', assignedUserIds);
+
+        if (!profilesError && profilesData) {
+          profilesMap = profilesData.reduce((acc, profile) => {
+            acc[profile.user_id] = profile.full_name;
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
+
       const transformedLeads: Lead[] = (leadsData || []).map(lead => ({
         id: lead.id,
         name: lead.name,
@@ -110,6 +129,7 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
         value: Number(lead.value) || 0,
         status: lead.status,
         assignedTo: lead.assigned_to,
+        assignedToName: lead.assigned_to ? profilesMap[lead.assigned_to] || null : null,
         followUpDate: lead.follow_up_date ? new Date(lead.follow_up_date) : null,
         createdAt: new Date(lead.created_at),
         updatedAt: new Date(lead.updated_at),
@@ -213,6 +233,7 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
         value: Number(data.value) || 0,
         status: data.status,
         assignedTo: data.assigned_to,
+        assignedToName: null, // Will be populated on next fetch
         followUpDate: data.follow_up_date ? new Date(data.follow_up_date) : null,
         createdAt: new Date(data.created_at),
         updatedAt: new Date(data.updated_at),

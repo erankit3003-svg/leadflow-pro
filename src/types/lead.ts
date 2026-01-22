@@ -22,6 +22,7 @@ export interface Lead {
   status: LeadStatus;
   value: number;
   assignedTo?: string | null;
+  assignedToName?: string | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy?: string | null;

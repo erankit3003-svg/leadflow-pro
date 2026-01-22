@@ -1,7 +1,7 @@
 import { Lead, STATUS_CONFIG, SOURCE_CONFIG } from '@/types/lead';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, Phone, Mail, Calendar, MessageCircle, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, Phone, Mail, Calendar, MessageCircle, MessageSquare, User } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -63,6 +63,7 @@ export function LeadsTable({ leads, onEdit, onDelete, onViewNotes }: LeadsTableP
             <TableHead>Contact</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Assigned To</TableHead>
             <TableHead>Value</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-12"></TableHead>
@@ -122,6 +123,16 @@ export function LeadsTable({ leads, onEdit, onDelete, onViewNotes }: LeadsTableP
                   <span className={cn('status-badge', statusConfig.bgColor, statusConfig.color)}>
                     {statusConfig.label}
                   </span>
+                </TableCell>
+                <TableCell>
+                  {lead.assignedToName ? (
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{lead.assignedToName}</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Unassigned</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="font-semibold text-foreground">
